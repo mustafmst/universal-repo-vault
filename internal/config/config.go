@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -46,6 +47,9 @@ func Initialize(repoPath string) error {
 	v.Set("patterns", []string{"*.secret.*"})
 
 	if err := v.SafeWriteConfigAs(fullConfigPath); err != nil {
+		if errors.Is(err, viper.ConfigFileAlreadyExistsError(fullConfigPath)) {
+			return nil
+		}
 		return fmt.Errorf("initializing config file: %w", err)
 	}
 	return nil
