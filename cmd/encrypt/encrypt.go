@@ -1,7 +1,10 @@
 package encrypt
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/mustafmst/universal-repo-vault/internal/config"
 	"github.com/mustafmst/universal-repo-vault/internal/files"
@@ -23,10 +26,23 @@ var EncryptCmd = &cobra.Command{
 		}
 
 		foundFiles, _ := files.ListAllConfiguredFiles(repoPath, cfg.SecretFiles, cfg.Patterns)
+		hashes, err := files.NewFileHashCollection(repoPath, foundFiles)
 
-		for _, f := range foundFiles {
-			log.Printf("Found file: %s\n", f)
+		lockfile := hashes.GetLockfileBody()
+		log.Printf("Lockfile:\n%s", lockfile)
+		f, err := os.Create(filepath.Join(repoPath, ".urv.lock"))
+		if err != nil {
+			return err
 		}
+		defer f.Close()
+		n, err := f.Write(lockfile)
+		if err != nil {
+			return err
+		}
+		if n != len(lockfile) {
+			return fmt.Errorf("lockafile incomplete write, size: %d, written: %d", len(lockfile), n)
+		}
+
 		return nil
 	},
 }
