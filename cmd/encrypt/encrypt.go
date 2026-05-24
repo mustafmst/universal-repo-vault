@@ -1,6 +1,8 @@
 package encrypt
 
 import (
+	"log"
+
 	"github.com/mustafmst/universal-repo-vault/internal/config"
 	"github.com/mustafmst/universal-repo-vault/internal/files"
 	"github.com/mustafmst/universal-repo-vault/internal/repo"
@@ -20,7 +22,11 @@ var EncryptCmd = &cobra.Command{
 			return err
 		}
 
-		files.ListAllConfiguredFiles(repoPath, cfg.SecretFiles, cfg.Patterns)
+		foundFiles, _ := files.ListAllConfiguredFiles(repoPath, cfg.SecretFiles, cfg.Patterns)
+
+		for _, f := range foundFiles {
+			log.Printf("Found file: %s\n", f)
+		}
 		return nil
 	},
 }

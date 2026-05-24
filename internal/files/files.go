@@ -2,7 +2,6 @@ package files
 
 import (
 	"io/fs"
-	"log"
 	"path/filepath"
 )
 
@@ -25,9 +24,17 @@ func ListAllConfiguredFiles(basePath string, fileList []string, patternlist []st
 			return err
 		}
 
-		log.Printf("Rel path: %s", relPath)
+		for _, f := range fileList {
+			if relPath == f {
+				result = append(result, relPath)
+			}
+		}
 
-		// for _, f := range fileList
+		for _, p := range patternlist {
+			if matched, _ := filepath.Match(p, d.Name()); matched {
+				result = append(result, relPath)
+			}
+		}
 
 		return nil
 	})
