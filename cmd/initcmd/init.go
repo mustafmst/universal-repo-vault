@@ -21,6 +21,7 @@ var InitCmd = &cobra.Command{
 			log.Fatalf(errorFormat, err)
 			return
 		}
+		repo.CheckGitignore(repoDir)
 
 		err = config.Initialize(repoDir)
 		if err != nil {

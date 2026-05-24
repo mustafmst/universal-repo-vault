@@ -12,6 +12,8 @@ var ErrNoRepoFound error = errors.New("no repo found")
 const (
 	gitCheckErrFormat      string = "git repo check failed: %w"
 	currentRepoErrorFormat string = "error getting current repo path: %w"
+
+	tempDir string = ".urvtemp"
 )
 
 func checkDirGitRepo(dirPath string) (bool, error) {
@@ -49,4 +51,39 @@ func GetCurrentRepoPath() (string, error) {
 		return "", fmt.Errorf(currentRepoErrorFormat, err)
 	}
 	return getRepoPathForPath(cwd)
+}
+
+func CheckGitignore(repoPath string) error {
+	fullPath := filepath.Join(repoPath, ".gitignore")
+	_, err := os.Stat(fullPath)
+
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	if err != nil {
+		f, err := os.Create(fullPath)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		_, err = f.WriteString(tempDir)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	f, err := os.Open(fullPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(tempDir)
+	if err != nil {
+		return err
+	}
+	return nil
 }
