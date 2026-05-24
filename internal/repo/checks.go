@@ -15,30 +15,30 @@ const (
 )
 
 func checkDirGitRepo(dirPath string) (bool, error) {
-	gitDirStat, err := os.Stat(filepath.Join(dirPath, ".git"))
+	_, err := os.Stat(filepath.Join(dirPath, ".git"))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return false, fmt.Errorf(gitCheckErrFormat, err)
 	} else if err != nil {
 		return false, nil
 	}
 
-	if gitDirStat.IsDir() {
-		return true, nil
-	}
-
-	return false, nil
+	return true, nil
 }
 
 func getRepoPathForPath(dirPath string) (string, error) {
-	if dirPath == "/" || dirPath == filepath.Dir(dirPath) {
+	absPath, err := filepath.Abs(dirPath)
+	if err != nil {
+		return "", err
+	}
+	if absPath == "/" || absPath == filepath.Dir(absPath) {
 		return "", ErrNoRepoFound
 	}
-	isGitRepo, err := checkDirGitRepo(dirPath)
+	isGitRepo, err := checkDirGitRepo(absPath)
 	if err != nil {
 		return "", err
 	}
 	if isGitRepo {
-		return dirPath, nil
+		return absPath, nil
 	}
 	return getRepoPathForPath(filepath.Dir(dirPath))
 }

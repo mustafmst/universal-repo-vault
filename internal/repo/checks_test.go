@@ -38,7 +38,7 @@ func TestCheckDirGitRepo(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "returns false when git path is a file",
+			name: "returns true when git path is a file",
 			setup: func(t *testing.T, dir string) string {
 				t.Helper()
 
@@ -48,7 +48,7 @@ func TestCheckDirGitRepo(t *testing.T) {
 
 				return dir
 			},
-			want: false,
+			want: true,
 		},
 		{
 			name: "wraps stat errors",
