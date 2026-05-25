@@ -1,6 +1,7 @@
 package files
 
 import (
+	"fmt"
 	"io/fs"
 	"path/filepath"
 )
@@ -39,7 +40,7 @@ func ListAllConfiguredFiles(basePath string, fileList []string, patternlist []st
 		return nil
 	})
 	if err != nil {
-		return result, err
+		return result, fmt.Errorf("listing files: %w", err)
 	}
 	return result, nil
 }

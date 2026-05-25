@@ -30,14 +30,14 @@ func checkDirGitRepo(dirPath string) (bool, error) {
 func getRepoPathForPath(dirPath string) (string, error) {
 	absPath, err := filepath.Abs(dirPath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("getting abs path: %w", err)
 	}
 	if absPath == "/" || absPath == filepath.Dir(absPath) {
 		return "", ErrNoRepoFound
 	}
 	isGitRepo, err := checkDirGitRepo(absPath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("checking if path is a git repo: %w", err)
 	}
 	if isGitRepo {
 		return absPath, nil

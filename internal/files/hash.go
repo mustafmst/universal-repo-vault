@@ -2,6 +2,7 @@ package files
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -23,17 +24,17 @@ type FileHash struct {
 func GetFileHash(absPath string) (*FileHash, error) {
 	f, err := os.Open(absPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("opening file for hashing: %w", err)
 	}
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("coping from file to hash: %w", err)
 	}
 	return &FileHash{absPath, h.Sum(nil)}, nil
 }
 
 func (h *FileHash) GetHexString() string {
-	return fmt.Sprintf("%x", h.Hash)
+	return hex.EncodeToString(h.Hash)
 }
 
 func NewFileHashCollection(basePath string, files []string) (*FileHasheCollection, error) {
@@ -52,7 +53,7 @@ func NewFileHashCollection(basePath string, files []string) (*FileHasheCollectio
 		res.sortedKeys = append(res.sortedKeys, f)
 	}
 	if len(errs) > 0 {
-		return nil, errors.Join(errs...)
+		return nil, fmt.Errorf("collecting hashes for files: %w", errors.Join(errs...))
 	}
 	sort.Strings(res.sortedKeys)
 	return res, nil
