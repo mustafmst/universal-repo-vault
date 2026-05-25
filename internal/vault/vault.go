@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -54,16 +55,16 @@ func NewVaultFromData(data []byte) *Vault {
 }
 
 func NewVaultFromFilePath(filePath string) (*Vault, error) {
-	var res *Vault
+	var res Vault
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
-	err = yaml.Unmarshal(data, res)
+	err = yaml.Unmarshal(data, &res)
 	if err != nil {
 		return nil, err
 	}
-	return res, nil
+	return &res, nil
 }
 
 func CreateZipVaultData(basePath string, filePaths []string) ([]byte, error) {
@@ -108,6 +109,30 @@ func writeFileToZip(zw *zip.Writer, basePath string, filePath string) error {
 }
 
 func UnpackZipVaultData(basePath string, data []byte) error {
-	// TODO: create logic to unpack zip data to proper files in the repo
-	panic("unimplemented")
+	dataReader := bytes.NewReader(data)
+	zr, err := zip.NewReader(dataReader, int64(len(data)))
+	if err != nil {
+		return fmt.Errorf("creating zip readed from bytes data: %w", err)
+	}
+
+	for _, zf := range zr.File {
+		log.Printf("file in decrypted archive: %s", zf.Name)
+		fullPath := filepath.Join(basePath, zf.Name)
+		f, err := os.Create(fullPath)
+		if errors.Is(err, os.ErrExist) {
+			if f, err = os.Open(fullPath); err != nil {
+				return fmt.Errorf("opening existing file(%s) for unpack: %w", fullPath, err)
+			}
+		}
+		zfr, err := zf.Open()
+		if err != nil {
+			return fmt.Errorf("opening zip file read: %w", err)
+		}
+		_, err = io.Copy(f, zfr)
+		if err != nil {
+			return fmt.Errorf("coping zipped file data to a file: %w", err)
+		}
+	}
+
+	return nil
 }
