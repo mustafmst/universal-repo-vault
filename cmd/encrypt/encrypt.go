@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"slices"
 
 	"github.com/mustafmst/universal-repo-vault/internal/config"
 	"github.com/mustafmst/universal-repo-vault/internal/files"
@@ -30,14 +29,11 @@ var EncryptCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		// FIXME: remove this log
-		log.Printf("Key: %s", key)
 
 		foundFiles, _ := files.ListAllConfiguredFiles(repoPath, cfg.SecretFiles, cfg.Patterns)
 		hashes, err := files.NewFileHashCollection(repoPath, foundFiles)
 
 		lockfile := hashes.GetLockfileBody()
-		log.Printf("Lockfile:\n%s", lockfile)
 		f, err := os.Create(filepath.Join(repoPath, ".urv.lock"))
 		if err != nil {
 			return err
@@ -56,23 +52,18 @@ var EncryptCmd = &cobra.Command{
 			log.Fatalf("creating secret archive: %v", err)
 		}
 
-		log.Printf("Secret zip archive data:\n%x\n\n", data)
-
 		encryptedData, err := vault.Encrypt(key, data)
 		if err != nil {
 			log.Fatalf("encryption error: %v", err)
 		}
 
-		log.Printf("Encrypted data:\n%x\n\n", encryptedData)
-
-		// for testing
-		decryptedData, err := vault.Decrypt(key, encryptedData)
+		v := vault.NewVaultFromData(encryptedData)
+		err = v.SaveToFile(filepath.Join(repoPath, vault.VaultFileName))
 		if err != nil {
-			log.Fatalf("decrypting error: %v", err)
+			return err
 		}
-		log.Printf("Decrypted data:\n%x\n\n", decryptedData)
-		log.Printf("Is same as input data: %d", slices.Compare(decryptedData, data))
 
+		log.Println("Vault saves successfully")
 		return nil
 	},
 }
