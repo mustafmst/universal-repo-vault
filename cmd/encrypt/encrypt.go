@@ -25,6 +25,12 @@ var EncryptCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		key, err := vault.GetKeyForRepo(repoPath)
+		if err != nil {
+			return err
+		}
+		// FIXME: remove this log
+		log.Printf("Key: %s", key)
 
 		foundFiles, _ := files.ListAllConfiguredFiles(repoPath, cfg.SecretFiles, cfg.Patterns)
 		hashes, err := files.NewFileHashCollection(repoPath, foundFiles)
