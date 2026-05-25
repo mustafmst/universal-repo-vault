@@ -9,6 +9,7 @@ import (
 	"github.com/mustafmst/universal-repo-vault/internal/config"
 	"github.com/mustafmst/universal-repo-vault/internal/files"
 	"github.com/mustafmst/universal-repo-vault/internal/repo"
+	"github.com/mustafmst/universal-repo-vault/internal/vault"
 	"github.com/spf13/cobra"
 )
 
@@ -42,6 +43,13 @@ var EncryptCmd = &cobra.Command{
 		if n != len(lockfile) {
 			return fmt.Errorf("lockafile incomplete write, size: %d, written: %d", len(lockfile), n)
 		}
+
+		data, err := vault.CreateZipVaultData(repoPath, foundFiles)
+		if err != nil {
+			log.Fatalf("creating secret archive: %v", err)
+		}
+
+		log.Printf("Secret zip archive data:\n%x\n\n", data)
 
 		return nil
 	},
