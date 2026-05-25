@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/mustafmst/universal-repo-vault/internal/config"
 	"github.com/mustafmst/universal-repo-vault/internal/files"
@@ -56,6 +57,21 @@ var EncryptCmd = &cobra.Command{
 		}
 
 		log.Printf("Secret zip archive data:\n%x\n\n", data)
+
+		encryptedData, err := vault.Encrypt(key, data)
+		if err != nil {
+			log.Fatalf("encryption error: %v", err)
+		}
+
+		log.Printf("Encrypted data:\n%x\n\n", encryptedData)
+
+		// for testing
+		decryptedData, err := vault.Decrypt(key, encryptedData)
+		if err != nil {
+			log.Fatalf("decrypting error: %v", err)
+		}
+		log.Printf("Decrypted data:\n%x\n\n", decryptedData)
+		log.Printf("Is same as input data: %d", slices.Compare(decryptedData, data))
 
 		return nil
 	},
