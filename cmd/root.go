@@ -6,6 +6,7 @@ import (
 	"github.com/mustafmst/universal-repo-vault/cmd/decrypt"
 	"github.com/mustafmst/universal-repo-vault/cmd/encrypt"
 	"github.com/mustafmst/universal-repo-vault/cmd/initcmd"
+	"github.com/mustafmst/universal-repo-vault/cmd/keys"
 	"github.com/spf13/cobra"
 )
 
@@ -13,6 +14,7 @@ func init() {
 	rootCmd.AddCommand(initcmd.InitCmd)
 	rootCmd.AddCommand(decrypt.DecryptCmd)
 	rootCmd.AddCommand(encrypt.EncryptCmd)
+	rootCmd.AddCommand(keys.KeysCmd)
 }
 
 var rootCmd = &cobra.Command{
