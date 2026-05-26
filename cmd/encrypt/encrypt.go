@@ -16,37 +16,37 @@ var EncryptCmd = &cobra.Command{
 	Use:   "encrypt",
 	Short: "Encrypt secrets in repository",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Get current repository path
 		repoPath, err := repo.GetCurrentRepoPath()
 		if err != nil {
 			return err
 		}
+
+		// Get local configuration
 		cfg, err := config.Load(repoPath)
 		if err != nil {
 			return err
 		}
+
+		// Get vault key
 		key, err := vault.GetKeyForRepo(repoPath)
 		if err != nil {
 			return err
 		}
 
+		// Get files for encryption
 		foundFiles, _ := files.ListAllConfiguredFiles(repoPath, cfg.SecretFiles, cfg.Patterns)
-		hashes, err := files.NewFileHashCollection(repoPath, foundFiles)
 
+		// Create lockfile
+		hashes, err := files.NewFileHashCollection(repoPath, foundFiles)
 		lockfile := hashes.GetLockfileBody()
 
-		err = files.SaveLockFile(filepath.Join(repoPath, ".urv.lock"), lockfile)
+		err = files.SaveLockFile(filepath.Join(repoPath, files.LockFileName), lockfile)
 		if err != nil {
 			return fmt.Errorf("sving lockfile: %w", err)
 		}
-		defer f.Close()
-		n, err := f.Write(lockfile)
-		if err != nil {
-			return err
-		}
-		if n != len(lockfile) {
-			return fmt.Errorf("lockafile incomplete write, size: %d, written: %d", len(lockfile), n)
-		}
 
+		// Compress and encrypt data of secret files
 		data, err := vault.CreateZipVaultData(repoPath, foundFiles)
 		if err != nil {
 			log.Fatalf("creating secret archive: %v", err)
@@ -57,6 +57,7 @@ var EncryptCmd = &cobra.Command{
 			log.Fatalf("encryption error: %v", err)
 		}
 
+		// Save vault data
 		v := vault.NewVaultFromData(encryptedData)
 		err = v.SaveToFile(filepath.Join(repoPath, vault.VaultFileName))
 		if err != nil {

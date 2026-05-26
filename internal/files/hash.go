@@ -11,6 +11,8 @@ import (
 	"sort"
 )
 
+const LockFileName string = ".urv.lock"
+
 type FileHasheCollection struct {
 	Hashes     map[string]string
 	sortedKeys []string
@@ -75,4 +77,5 @@ func SaveLockFile(filePath string, body []byte) error {
 	if n != len(body) {
 		return fmt.Errorf("lockafile save incomplete")
 	}
+	return nil
 }
