@@ -66,3 +66,13 @@ func (c *FileHasheCollection) GetLockfileBody() []byte {
 	}
 	return body
 }
+
+func SaveLockFile(filePath string, body []byte) error {
+	n, err := SaveDataToFile(filePath, body, true)
+	if err != nil {
+		return err
+	}
+	if n != len(body) {
+		return fmt.Errorf("lockafile save incomplete")
+	}
+}

@@ -1,10 +1,14 @@
 package files
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 )
+
+var ErrNotReplacingFile error = errors.New("file was not replaced")
 
 func ListAllConfiguredFiles(basePath string, fileList []string, patternlist []string) ([]string, error) {
 	result := []string{}
@@ -43,4 +47,30 @@ func ListAllConfiguredFiles(basePath string, fileList []string, patternlist []st
 		return result, fmt.Errorf("listing files: %w", err)
 	}
 	return result, nil
+}
+
+func SaveDataToFile(fullPath string, data []byte, replace bool) (int, error) {
+	stat, err := os.Stat(fullPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return 0, fmt.Errorf("could not sts the file %s: %w", fullPath, err)
+	}
+
+	exist := !errors.Is(err, os.ErrNotExist) && !stat.IsDir()
+	if exist && !replace {
+		return 0, fmt.Errorf("%s: %w", fullPath, ErrNotReplacingFile)
+	}
+
+	if exist {
+		err := os.Remove(fullPath)
+		if err != nil {
+			return 0, fmt.Errorf("could not remove file %s: %w", fullPath, errors.Join(ErrNotReplacingFile, err))
+		}
+	}
+
+	f, err := os.Create(fullPath)
+	if err != nil {
+		return 0, fmt.Errorf("creating file %s: %w", fullPath, err)
+	}
+
+	return f.Write(data)
 }
