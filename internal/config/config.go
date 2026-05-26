@@ -18,6 +18,7 @@ type Config struct {
 	Patterns    []string `mapstructure:"patterns"`
 }
 
+// Load reads configuration from given path and return deserialized object
 func Load(repoPath string) (*Config, error) {
 	v := viper.New()
 
@@ -36,6 +37,7 @@ func Load(repoPath string) (*Config, error) {
 	return &cfg, nil
 }
 
+// Initialize creates empty configuration file with example values inside repository
 func Initialize(repoPath string) error {
 	v := viper.New()
 

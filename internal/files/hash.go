@@ -23,6 +23,11 @@ type FileHash struct {
 	Hash []byte
 }
 
+// GetHexHash return hash of given data in hex format string and error if something goes wrong
+func GetHexHash(data []byte) (string, error) {
+	panic("unimplemented")
+}
+
 func GetFileHash(absPath string) (*FileHash, error) {
 	f, err := os.Open(absPath)
 	if err != nil {

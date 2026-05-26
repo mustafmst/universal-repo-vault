@@ -10,6 +10,7 @@ import (
 
 var ErrNotReplacingFile error = errors.New("file was not replaced")
 
+// ListAllConfiguredFiles gathers a list of absolute file paths for files matching configuration
 func ListAllConfiguredFiles(basePath string, fileList []string, patternlist []string) ([]string, error) {
 	result := []string{}
 	err := filepath.WalkDir(basePath, func(path string, d fs.DirEntry, err error) error {
@@ -49,6 +50,7 @@ func ListAllConfiguredFiles(basePath string, fileList []string, patternlist []st
 	return result, nil
 }
 
+// SaveDataToFile removes existing file if replace is true and creates new to save given data
 func SaveDataToFile(fullPath string, data []byte, replace bool) (int, error) {
 	stat, err := os.Stat(fullPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
