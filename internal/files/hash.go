@@ -25,7 +25,11 @@ type FileHash struct {
 
 // GetHexHash return hash of given data in hex format string and error if something goes wrong
 func GetHexHash(data []byte) (string, error) {
-	panic("unimplemented")
+	h := sha256.New()
+	if _, err := h.Write(data); err != nil {
+		return "", fmt.Errorf("writing to hash failed: %w", err)
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func GetFileHash(absPath string) (*FileHash, error) {
@@ -83,4 +87,8 @@ func SaveLockFile(filePath string, body []byte) error {
 		return fmt.Errorf("lockafile save incomplete")
 	}
 	return nil
+}
+
+func OpenLockFile(repoPath string) ([]byte, error) {
+	return os.ReadFile(filepath.Join(repoPath, LockFileName))
 }

@@ -1,8 +1,10 @@
 package encrypt
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 
 	"github.com/mustafmst/universal-repo-vault/internal/config"
@@ -39,9 +41,15 @@ var EncryptCmd = &cobra.Command{
 
 		// Create lockfile
 		hashes, err := files.NewFileHashCollection(repoPath, foundFiles)
-		lockfile := hashes.GetLockfileBody()
-
-		err = files.SaveLockFile(filepath.Join(repoPath, files.LockFileName), lockfile)
+		newLockfile := hashes.GetLockfileBody()
+		oldLockfile, err := files.OpenLockFile(repoPath)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("reading old lockfile: %v", err)
+		}
+		if newLockfile != oldLockfile {
+			return fmt.Errorf("Lockfile same as old one, nothing to encrypt")
+		}
+		err = files.SaveLockFile(filepath.Join(repoPath, files.LockFileName), newLockfile)
 		if err != nil {
 			return fmt.Errorf("sving lockfile: %w", err)
 		}
