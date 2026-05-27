@@ -46,9 +46,13 @@ var EncryptCmd = &cobra.Command{
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("reading old lockfile: %v", err)
 		}
-		if newLockfile != oldLockfile {
-			return fmt.Errorf("Lockfile same as old one, nothing to encrypt")
+		newlockhash, _ := files.GetHexHash(newLockfile)
+		oldlockhash, _ := files.GetHexHash(oldLockfile)
+		if newlockhash == oldlockhash {
+			log.Println("Lockfile same as old one, nothing to encrypt")
+			return nil
 		}
+		log.Printf("[DEBUG]\noldLockfile:\n%s\nhash: %s\newLockfile:\n%s\nhash: %s\n", oldLockfile, oldlockhash, newLockfile, newlockhash)
 		err = files.SaveLockFile(filepath.Join(repoPath, files.LockFileName), newLockfile)
 		if err != nil {
 			return fmt.Errorf("sving lockfile: %w", err)
