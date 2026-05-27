@@ -27,7 +27,7 @@ var DecryptCmd = &cobra.Command{
 			return err
 		}
 
-		decryptedArch, err := vault.Decrypt(key, v.GetByteData())
+		decryptedArch, err := vault.AesGcmDecrypt(key, v.GetByteData())
 		if err != nil {
 			return err
 		}

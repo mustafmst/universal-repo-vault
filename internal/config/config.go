@@ -3,9 +3,11 @@ package config
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/spf13/viper"
+	"go.yaml.in/yaml/v3"
 )
 
 const (
@@ -13,9 +15,56 @@ const (
 	configFileType string = "yaml"
 )
 
+var ErrConfigNotExist error = errors.New("config not exist")
+
 type Config struct {
-	SecretFiles []string `mapstructure:"secretfiles"`
-	Patterns    []string `mapstructure:"patterns"`
+	SecretFiles []string `mapstructure:"secretfiles" yaml:"secretfiles"`
+	Patterns    []string `mapstructure:"patterns" yaml:"patterns"`
+	Archiver    string   `mapstructure:"archiver" yaml:"archiver"`
+	Cypher      string   `mapstructure:"cypher" yaml:"cypher"`
+}
+
+type ConfigProvider struct {
+	repoPath string
+	config   *Config
+}
+
+func NewProvider(repoPath string) *ConfigProvider {
+	return &ConfigProvider{repoPath, nil}
+}
+
+func (cp *ConfigProvider) GetConfigPath() string {
+	return filepath.Join(cp.repoPath, configFileName)
+}
+
+func (cp *ConfigProvider) Get() (*Config, error) {
+	if cp.config != nil {
+		return cp.config, nil
+	}
+
+	rawData, err := os.ReadFile(cp.GetConfigPath())
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		cp.config = defaultConfig()
+		return cp.config, fmt.Errorf("getting config for repo in %s: %w", cp.repoPath, err)
+	}
+	var c Config
+
+	err = yaml.Unmarshal(rawData, c)
+	if err != nil {
+		cp.config = defaultConfig()
+		return cp.config, fmt.Errorf("deserializing config for repo in %s: %w", cp.repoPath, err)
+	}
+	cp.config = &c
+	return cp.config, nil
+}
+
+func defaultConfig() *Config {
+	return &Config{
+		SecretFiles: []string{".env"},
+		Patterns:    []string{"*.secret.*"},
+		Archiver:    "zip",
+		Cypher:      "aes-gcm",
+	}
 }
 
 // Load reads configuration from given path and return deserialized object

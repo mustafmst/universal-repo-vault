@@ -11,7 +11,7 @@ const testKey = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1
 func TestEncryptDecryptRoundTrip(t *testing.T) {
 	data := []byte("secret data that should survive encryption and decryption")
 
-	encrypted, err := Encrypt(testKey, data)
+	encrypted, err := AesGcmEncrypt(testKey, data)
 	if err != nil {
 		t.Fatalf("expected no encrypt error, got %v", err)
 	}
@@ -20,7 +20,7 @@ func TestEncryptDecryptRoundTrip(t *testing.T) {
 		t.Fatal("expected encrypted data to differ from plaintext")
 	}
 
-	decrypted, err := Decrypt(testKey, encrypted)
+	decrypted, err := AesGcmDecrypt(testKey, encrypted)
 	if err != nil {
 		t.Fatalf("expected no decrypt error, got %v", err)
 	}
@@ -33,12 +33,12 @@ func TestEncryptDecryptRoundTrip(t *testing.T) {
 func TestEncryptUsesRandomNonce(t *testing.T) {
 	data := []byte("same plaintext")
 
-	first, err := Encrypt(testKey, data)
+	first, err := AesGcmEncrypt(testKey, data)
 	if err != nil {
 		t.Fatalf("expected no error encrypting first value, got %v", err)
 	}
 
-	second, err := Encrypt(testKey, data)
+	second, err := AesGcmEncrypt(testKey, data)
 	if err != nil {
 		t.Fatalf("expected no error encrypting second value, got %v", err)
 	}
@@ -65,7 +65,7 @@ func TestEncryptRejectsInvalidKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Encrypt(tt.key, []byte("data"))
+			got, err := AesGcmEncrypt(tt.key, []byte("data"))
 			if err == nil {
 				t.Fatal("expected error, got nil")
 			}
@@ -93,7 +93,7 @@ func TestDecryptRejectsInvalidKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Decrypt(tt.key, []byte("ciphertext"))
+			got, err := AesGcmDecrypt(tt.key, []byte("ciphertext"))
 			if err == nil {
 				t.Fatal("expected error, got nil")
 			}
@@ -105,7 +105,7 @@ func TestDecryptRejectsInvalidKey(t *testing.T) {
 }
 
 func TestDecryptRejectsShortCiphertext(t *testing.T) {
-	got, err := Decrypt(testKey, []byte("short"))
+	got, err := AesGcmDecrypt(testKey, []byte("short"))
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -118,14 +118,14 @@ func TestDecryptRejectsShortCiphertext(t *testing.T) {
 }
 
 func TestDecryptRejectsTamperedCiphertext(t *testing.T) {
-	encrypted, err := Encrypt(testKey, []byte("secret data"))
+	encrypted, err := AesGcmEncrypt(testKey, []byte("secret data"))
 	if err != nil {
 		t.Fatalf("expected no encrypt error, got %v", err)
 	}
 
 	encrypted[len(encrypted)-1] ^= 0xff
 
-	got, err := Decrypt(testKey, encrypted)
+	got, err := AesGcmDecrypt(testKey, encrypted)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

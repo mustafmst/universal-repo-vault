@@ -64,7 +64,7 @@ var EncryptCmd = &cobra.Command{
 			log.Fatalf("creating secret archive: %v", err)
 		}
 
-		encryptedData, err := vault.Encrypt(key, data)
+		encryptedData, err := vault.AesGcmEncrypt(key, data)
 		if err != nil {
 			log.Fatalf("encryption error: %v", err)
 		}
