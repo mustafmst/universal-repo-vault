@@ -21,10 +21,10 @@ var InitCmd = &cobra.Command{
 			log.Fatalf(errorFormat, err)
 			return
 		}
-		err = repo.CheckGitignore(repoDir)
-		if err != nil {
-			log.Fatalf("Error while adding gitignore entry: %v", err)
-		}
+		// err = repo.CheckGitignore(repoDir)
+		// if err != nil {
+		// 	log.Fatalf("Error while adding gitignore entry: %v", err)
+		// }
 
 		err = config.Initialize(repoDir)
 		if err != nil {

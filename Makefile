@@ -1,6 +1,8 @@
 .PHONY: build test tidy lint
 
-BINARY := dist/urv
+BINARY_NAME := urv
+
+BINARY := dist/$(BINARY_NAME)
 
 build:
 	mkdir -p dist
@@ -16,3 +18,7 @@ tidy:
 lint:
 	gofmt -w .
 	go vet ./...
+
+install: 
+	rm -rf ~/.local/bin/$(BINARY_NAME)
+	cp $(BINARY) ~/.local/bin/$(BINARY_NAME)
