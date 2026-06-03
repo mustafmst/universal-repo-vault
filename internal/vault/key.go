@@ -21,6 +21,12 @@ type KeyMapping struct {
 	keys map[string]string
 }
 
+func (k *KeyMapping) List() {
+	for k, v := range k.keys {
+		fmt.Printf("%s -> %s\n", k, v)
+	}
+}
+
 func (k *KeyMapping) Get(repo string) (string, error) {
 	key, ok := k.keys[repo]
 	if !ok {
