@@ -11,7 +11,6 @@ import (
 )
 
 func init() {
-	rootCmd.PersistentFlags().BoolP("force", "f", false, "force actions like file override")
 	rootCmd.AddCommand(initcmd.InitCmd)
 	rootCmd.AddCommand(decrypt.DecryptCmd)
 	rootCmd.AddCommand(encrypt.EncryptCmd)
