@@ -18,7 +18,7 @@ func init() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "universal-repo-vault",
+	Use:   "urv",
 	Short: "URV is a tool for safely manage, store, encrypt and decrypt all secret and env files in repository",
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Println("Magic will be happening here")

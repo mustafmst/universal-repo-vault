@@ -21,6 +21,20 @@ var AddKeyCmd = &cobra.Command{
 			log.Println("Current path not in git repository")
 			return nil
 		}
+		keyName, err := cmd.Flags().GetString("key")
+		if err != nil {
+			return err
+		}
+		if keyName != "" {
+			// NOTE: Key flag takes precedence over file
+
+			mapping, err := vault.NewKeyMapping()
+			if err != nil {
+				return nil
+			}
+			return mapping.UseKeyForRepo(keyName, repoPath)
+		}
+
 		file, err := cmd.Flags().GetString("file")
 		if err != nil {
 			return err
@@ -48,4 +62,5 @@ var AddKeyCmd = &cobra.Command{
 
 func init() {
 	AddKeyCmd.Flags().StringP("file", "f", "", "file with key for encryption")
+	AddKeyCmd.Flags().StringP("key", "k", "", "already existing key")
 }

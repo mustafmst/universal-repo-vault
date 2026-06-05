@@ -85,12 +85,27 @@ func SaveKeyWithRepoName(key, repoPath string) error {
 	return SaveKey(key, repoPath, filepath.Base(repoPath))
 }
 
+func (km *KeyMapping) UseKeyForRepo(keyName string, repoPath string) error {
+	keyFullPath := getKeyFullPath(keyName)
+	_, err := os.Stat(keyFullPath)
+	if err != nil {
+		return fmt.Errorf("key file not found: %w", err)
+	}
+
+	km.keys[repoPath] = keyName
+	return nil
+}
+
+func getKeyFullPath(keyName string) string {
+	return filepath.Join(os.Getenv("HOME"), ".config", "urv", "keys", keyName)
+}
+
 func SaveKey(key string, repoPath string, keyName string) error {
 	if err := ensureKeysDir(); err != nil {
 		return fmt.Errorf("creating keys directory: %w", err)
 	}
 
-	keyFile := filepath.Join(os.Getenv("HOME"), ".config", "urv", "keys", keyName)
+	keyFile := getKeyFullPath(keyName)
 	if _, err := os.Stat(keyFile); !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("file %s already exists: %w", keyFile, err)
 	}
