@@ -21,6 +21,14 @@ var GenKeyCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		nameOverride, err := cmd.Flags().GetString("name-override")
+		if err != nil {
+			return err
+		}
+		if nameOverride != "" {
+			// NOTE: Override name
+			return vault.SaveKey(key, repoPath, nameOverride)
+		}
 		err = vault.SaveKeyWithRepoName(key, repoPath)
 		if err != nil {
 			return err
@@ -28,4 +36,8 @@ var GenKeyCmd = &cobra.Command{
 		log.Println("Key saved to ~/.config/urv/keys")
 		return nil
 	},
+}
+
+func init() {
+	GenKeyCmd.Flags().StringP("name-override", "no", "", "use other name for the key that repo name")
 }
