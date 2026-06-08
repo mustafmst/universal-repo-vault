@@ -35,7 +35,7 @@
 
    Change needed: check every returned error before using the result.
 
-6. **P1: Decrypt does not create parent directories and can leak file handles**
+6. ~**P1: Decrypt does not create parent directories and can leak file handles**~
    `internal/vault/vault.go:121-131`
 
    `os.Create(fullPath)` fails if the zip contains nested paths whose directories do not exist. The opened destination file and zip entry reader are also not closed in the loop.

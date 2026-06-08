@@ -116,29 +116,44 @@ func UnpackZipVaultData(basePath string, data []byte) error {
 		return fmt.Errorf("creating zip readed from bytes data: %w", err)
 	}
 
+	errs := []error{}
+
 	for _, zf := range zr.File {
-		if ok, err := isChildOfPath(zf.Name, basePath); !ok || err != nil {
-			log.Printf("file outside of repo, reencrypt vault: %s", zf.Name)
-			continue
-		}
-		log.Printf("file in decrypted archive: %s", zf.Name)
-		fullPath := filepath.Join(basePath, zf.Name)
-		f, err := os.Create(fullPath)
-		if errors.Is(err, os.ErrExist) {
-			if f, err = os.Open(fullPath); err != nil {
-				return fmt.Errorf("opening existing file(%s) for unpack: %w", fullPath, err)
-			}
-		}
-		zfr, err := zf.Open()
+		err := extractFileFromZip(zf, basePath)
 		if err != nil {
-			return fmt.Errorf("opening zip file read: %w", err)
-		}
-		_, err = io.Copy(f, zfr)
-		if err != nil {
-			return fmt.Errorf("coping zipped file data to a file: %w", err)
+			errs = append(errs, err)
 		}
 	}
 
+	return errors.Join(errs...)
+}
+
+func extractFileFromZip(zf *zip.File, basePath string) error {
+	if ok, err := isChildOfPath(zf.Name, basePath); !ok || err != nil {
+		log.Printf("file outside of repo, reencrypt vault: %s", zf.Name)
+		return nil
+	}
+	log.Printf("file in decrypted archive: %s", zf.Name)
+	fullPath := filepath.Join(basePath, zf.Name)
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+		return err
+	}
+	f, err := os.Create(fullPath)
+	if errors.Is(err, os.ErrExist) {
+		if f, err = os.Open(fullPath); err != nil {
+			return fmt.Errorf("opening existing file(%s) for unpack: %w", fullPath, err)
+		}
+	}
+	defer f.Close()
+	zfr, err := zf.Open()
+	if err != nil {
+		return fmt.Errorf("opening zip file read: %w", err)
+	}
+	defer zfr.Close()
+	_, err = io.Copy(f, zfr)
+	if err != nil {
+		return fmt.Errorf("coping zipped file data to a file: %w", err)
+	}
 	return nil
 }
 
