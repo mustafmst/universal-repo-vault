@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -116,6 +117,10 @@ func UnpackZipVaultData(basePath string, data []byte) error {
 	}
 
 	for _, zf := range zr.File {
+		if ok, err := isChildOfPath(zf.Name, basePath); !ok || err != nil {
+			log.Printf("file outside of repo, reencrypt vault: %s", zf.Name)
+			continue
+		}
 		log.Printf("file in decrypted archive: %s", zf.Name)
 		fullPath := filepath.Join(basePath, zf.Name)
 		f, err := os.Create(fullPath)
@@ -135,4 +140,12 @@ func UnpackZipVaultData(basePath string, data []byte) error {
 	}
 
 	return nil
+}
+
+func isChildOfPath(checkedPath, basePath string) (bool, error) {
+	abs, err := filepath.Abs(checkedPath)
+	if err != nil {
+		return false, err
+	}
+	return strings.HasPrefix(abs, basePath), nil
 }
