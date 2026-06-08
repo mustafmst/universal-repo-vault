@@ -28,7 +28,7 @@
 
    Change needed: return errors from commands instead of logging success/fatal exits.
 
-5. **P1: Encrypt ignores critical errors before using results**
+5. ~**P1: Encrypt ignores critical errors before using results**~
    `cmd/encrypt/encrypt.go:40-50`
 
    `ListAllConfiguredFiles`, `NewFileHashCollection`, and `GetHexHash` errors are ignored or overwritten. If file walking or hashing fails, the command can panic on `hashes.GetLockfileBody()` or proceed with incomplete state.

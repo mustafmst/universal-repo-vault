@@ -37,17 +37,29 @@ var EncryptCmd = &cobra.Command{
 		}
 
 		// Get files for encryption
-		foundFiles, _ := files.ListAllConfiguredFiles(repoPath, cfg.SecretFiles, cfg.Patterns)
+		foundFiles, err := files.ListAllConfiguredFiles(repoPath, cfg.SecretFiles, cfg.Patterns)
+		if err != nil {
+			return fmt.Errorf("listing files for enryption failed: %w", err)
+		}
 
 		// Create lockfile
 		hashes, err := files.NewFileHashCollection(repoPath, foundFiles)
+		if err != nil {
+			return fmt.Errorf("lockfile body creation failed: %w", err)
+		}
 		newLockfile := hashes.GetLockfileBody()
 		oldLockfile, err := files.OpenLockFile(repoPath)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("reading old lockfile: %v", err)
 		}
-		newlockhash, _ := files.GetHexHash(newLockfile)
-		oldlockhash, _ := files.GetHexHash(oldLockfile)
+		newlockhash, err := files.GetHexHash(newLockfile)
+		if err != nil {
+			return fmt.Errorf("getting new lockfile hash failed: %w", err)
+		}
+		oldlockhash, err := files.GetHexHash(oldLockfile)
+		if err != nil {
+			return fmt.Errorf("getting old lockfile hash failed: %w", err)
+		}
 		if newlockhash == oldlockhash {
 			log.Println("Lockfile same as old one, nothing to encrypt")
 			return nil
