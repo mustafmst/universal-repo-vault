@@ -2,7 +2,6 @@ package add
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -18,8 +17,7 @@ var AddKeyCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repoPath, err := repo.GetCurrentRepoPath()
 		if err != nil {
-			log.Println("Current path not in git repository")
-			return nil
+			return err
 		}
 		keyName, err := cmd.Flags().GetString("key")
 		if err != nil {
@@ -30,7 +28,7 @@ var AddKeyCmd = &cobra.Command{
 
 			mapping, err := vault.NewKeyMapping()
 			if err != nil {
-				return nil
+				return err
 			}
 			return mapping.UseKeyForRepo(keyName, repoPath)
 		}

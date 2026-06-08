@@ -56,12 +56,12 @@ var EncryptCmd = &cobra.Command{
 		// Compress and encrypt data of secret files
 		data, err := vault.CreateZipVaultData(repoPath, foundFiles)
 		if err != nil {
-			log.Fatalf("creating secret archive: %v", err)
+			return fmt.Errorf("creating secret archive: %w", err)
 		}
 
 		encryptedData, err := vault.AesGcmEncrypt(key, data)
 		if err != nil {
-			log.Fatalf("encryption error: %v", err)
+			return fmt.Errorf("encryption error: %w", err)
 		}
 
 		// Save vault data

@@ -21,7 +21,7 @@
 
    Change needed: create key files with `0600`, and consider enforcing/chmodding existing key files.
 
-4. **P1: Several CLI errors are hidden or terminate outside Cobra error handling**
+4. ~**P1: Several CLI errors are hidden or terminate outside Cobra error handling**~
    `cmd/keys/gen/gen.go:15-18`, `cmd/keys/add/add.go:19-23`, `cmd/keys/add/add.go:31-34`, `cmd/encrypt/encrypt.go:64-69`, `cmd/initcmd/init.go:21-27`
 
    Some commands return `nil` after failure, so the process exits successfully even though nothing worked. Other paths call `log.Fatalf` inside command handlers, bypassing `RunE` error handling and any cleanup.

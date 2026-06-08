@@ -14,8 +14,7 @@ var GenKeyCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repoPath, err := repo.GetCurrentRepoPath()
 		if err != nil {
-			log.Println("Current path not in git repository")
-			return nil
+			return err
 		}
 		key, err := vault.GenNewKey()
 		if err != nil {
