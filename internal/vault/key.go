@@ -110,7 +110,8 @@ func SaveKey(key string, repoPath string, keyName string) error {
 		return fmt.Errorf("file %s already exists: %w", keyFile, err)
 	}
 
-	f, err := os.Create(keyFile)
+	// f, err := os.Create(keyFile)
+	f, err := os.OpenFile(keyFile, os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}

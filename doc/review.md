@@ -1,6 +1,6 @@
 # Code Review Findings
 
-1. **P0: Decrypt can write files outside the repository**
+1. ~**P0: Decrypt can write files outside the repository**~
    `internal/vault/vault.go:118-121`
 
    `UnpackZipVaultData` trusts `zf.Name` from the vault and joins it directly with `basePath`. A crafted vault entry like `../../.ssh/authorized_keys` or an absolute path can escape the repo and overwrite arbitrary files during `urv decrypt`.
@@ -14,7 +14,7 @@
 
    Change needed: build archive, encrypt, and write vault successfully before replacing `.urv.lock`, ideally with temp files and atomic rename.
 
-3. **P0: Key files are created with default filesystem permissions**
+3. ~**P0: Key files are created with default filesystem permissions**~
    `internal/vault/key.go:113`
 
    `os.Create` uses `0666` before umask, commonly resulting in `0644`. Encryption keys may become readable by other local users.
