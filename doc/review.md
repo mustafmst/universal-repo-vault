@@ -7,7 +7,7 @@
 
    Change needed: reject absolute paths, `..` path traversal, and paths that do not remain under `basePath` after cleaning/evaluating.
 
-2. **P0: Encrypt can leave `.urv.lock` updated while vault encryption failed**
+2. ~**P0: Encrypt can leave `.urv.lock` updated while vault encryption failed**~
    `cmd/encrypt/encrypt.go:43-74`
 
    The command writes `.urv.lock` before zip creation, encryption, and vault write complete. If any later step fails, the lockfile says the plaintext files are already encrypted, and the next run can skip encryption because hashes match.

@@ -52,11 +52,6 @@ var EncryptCmd = &cobra.Command{
 			log.Println("Lockfile same as old one, nothing to encrypt")
 			return nil
 		}
-		log.Printf("[DEBUG]\noldLockfile:\n%s\nhash: %s\newLockfile:\n%s\nhash: %s\n", oldLockfile, oldlockhash, newLockfile, newlockhash)
-		err = files.SaveLockFile(filepath.Join(repoPath, files.LockFileName), newLockfile)
-		if err != nil {
-			return fmt.Errorf("sving lockfile: %w", err)
-		}
 
 		// Compress and encrypt data of secret files
 		data, err := vault.CreateZipVaultData(repoPath, foundFiles)
@@ -74,6 +69,14 @@ var EncryptCmd = &cobra.Command{
 		err = v.SaveToFile(filepath.Join(repoPath, vault.VaultFileName))
 		if err != nil {
 			return err
+		}
+
+		// NOTE: Save new lockfile only after vault save finished successfully.
+		// In worst case scanario just remove failed lockfile
+		err = files.SaveLockFile(filepath.Join(repoPath, files.LockFileName), newLockfile)
+		if err != nil {
+			log.Printf("Lockfile saving failed. Vault regerenarion might be needed")
+			return fmt.Errorf("saving lockfile: %w", err)
 		}
 
 		log.Println("Vault saves successfully")
