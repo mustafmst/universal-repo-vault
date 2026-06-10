@@ -49,7 +49,7 @@ func (cp *ConfigProvider) Get() (*Config, error) {
 	}
 	var c Config
 
-	err = yaml.Unmarshal(rawData, c)
+	err = yaml.Unmarshal(rawData, &c)
 	if err != nil {
 		cp.config = defaultConfig()
 		return cp.config, fmt.Errorf("deserializing config for repo in %s: %w", cp.repoPath, err)

@@ -49,7 +49,7 @@
 
    Change needed: explicitly decide overwrite behavior, use `os.OpenFile` with correct flags, and consider a `--force` or backup strategy.
 
-8. **P2: `ConfigProvider.Get` cannot deserialize config correctly**
+8. ~**P2: `ConfigProvider.Get` cannot deserialize config correctly**~
    `internal/config/config.go:52`
 
    `yaml.Unmarshal(rawData, c)` passes a non-pointer struct. This will fail if `ConfigProvider.Get` is used, returning defaults plus an error instead of loaded config.
