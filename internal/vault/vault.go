@@ -10,7 +10,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -119,7 +118,8 @@ func UnpackZipVaultData(basePath string, data []byte) error {
 	errs := []error{}
 
 	for _, zf := range zr.File {
-		err := extractFileFromZip(zf, basePath)
+		// FIXME: Use flag here
+		err := extractFileFromZip(zf, basePath, true)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -128,23 +128,31 @@ func UnpackZipVaultData(basePath string, data []byte) error {
 	return errors.Join(errs...)
 }
 
-func extractFileFromZip(zf *zip.File, basePath string) error {
-	if ok, err := isChildOfPath(zf.Name, basePath); !ok || err != nil {
-		log.Printf("file outside of repo, reencrypt vault: %s", zf.Name)
-		return nil
+func extractFileFromZip(zf *zip.File, basePath string, forceReplace bool) error {
+	cleanName := filepath.Clean(zf.Name)
+	if !filepath.IsLocal(cleanName) {
+		return fmt.Errorf("unsafe zip path: %s", zf.Name)
 	}
 	log.Printf("file in decrypted archive: %s", zf.Name)
-	fullPath := filepath.Join(basePath, zf.Name)
+	fullPath := filepath.Join(basePath, cleanName)
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
 		return err
 	}
-	f, err := os.Create(fullPath)
-	if errors.Is(err, os.ErrExist) {
-		if f, err = os.Open(fullPath); err != nil {
-			return fmt.Errorf("opening existing file(%s) for unpack: %w", fullPath, err)
-		}
+	flags := os.O_WRONLY | os.O_CREATE
+	if forceReplace {
+		flags |= os.O_TRUNC
+	} else {
+		flags |= os.O_EXCL
+	}
+
+	f, err := os.OpenFile(fullPath, flags, zf.Mode())
+	if err != nil {
+		return fmt.Errorf("opening file %s for unpack: %w", fullPath, err)
 	}
 	defer f.Close()
+	if existed && !forceReplace {
+		return fmt.Errorf("file exists, considef using force rplace: %s", fullPath)
+	}
 	zfr, err := zf.Open()
 	if err != nil {
 		return fmt.Errorf("opening zip file read: %w", err)
@@ -155,12 +163,4 @@ func extractFileFromZip(zf *zip.File, basePath string) error {
 		return fmt.Errorf("coping zipped file data to a file: %w", err)
 	}
 	return nil
-}
-
-func isChildOfPath(checkedPath, basePath string) (bool, error) {
-	abs, err := filepath.Abs(checkedPath)
-	if err != nil {
-		return false, err
-	}
-	return strings.HasPrefix(abs, basePath), nil
 }

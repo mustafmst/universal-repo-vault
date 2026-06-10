@@ -42,7 +42,7 @@
 
    Change needed: create parent directories with safe permissions and close both file handles per entry.
 
-7. **P2: Existing files are not handled safely during decrypt**
+7. ~**P2: Existing files are not handled safely during decrypt**~
    `internal/vault/vault.go:121-126`
 
    `os.Create` already truncates existing files, so the `os.ErrExist` branch is effectively dead. If it did run, `os.Open` opens read-only, so `io.Copy` would fail.
