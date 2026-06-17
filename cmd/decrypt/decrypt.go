@@ -1,51 +1,32 @@
 package decrypt
 
 import (
-	"log"
-	"path/filepath"
+	"fmt"
 
+	"github.com/mustafmst/universal-repo-vault/internal/app"
 	"github.com/mustafmst/universal-repo-vault/internal/repo"
-	"github.com/mustafmst/universal-repo-vault/internal/vault"
 	"github.com/spf13/cobra"
 )
 
-var DecryptCmd = &cobra.Command{
-	Use:   "decrypt",
-	Short: "Decrypt secrets in repository",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		repoPath, err := repo.GetCurrentRepoPath()
-		if err != nil {
-			return err
-		}
-		key, err := vault.GetKeyForRepo(repoPath)
-		if err != nil {
-			return err
-		}
+func NewCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "decrypt",
+		Short: "Decrypt vault files into the repository",
+		Args:  cobra.NoArgs,
+		RunE:  runDecrypt,
+	}
+}
 
-		v, err := vault.NewVaultFromFilePath(filepath.Join(repoPath, vault.VaultFileName))
-		if err != nil {
-			return err
-		}
-		if err := v.ValidateForDecrypt(); err != nil {
-			return err
-		}
+func runDecrypt(cmd *cobra.Command, args []string) error {
+	repoPath, err := repo.GetCurrentRepoPath()
+	if err != nil {
+		return err
+	}
 
-		vaultData, err := v.GetByteData()
-		if err != nil {
-			return err
-		}
+	if err := app.DecryptRepo(repoPath); err != nil {
+		return err
+	}
 
-		decryptedArch, err := vault.AesGcmDecrypt(key, vaultData)
-		if err != nil {
-			return err
-		}
-
-		err = vault.UnpackZipVaultData(repoPath, decryptedArch)
-		if err != nil {
-			return err
-		}
-
-		log.Println("Vault unpacked successfully")
-		return nil
-	},
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), "Vault unpacked successfully")
+	return err
 }

@@ -5,9 +5,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/mustafmst/universal-repo-vault/internal/files"
 	"go.yaml.in/yaml/v3"
@@ -25,6 +26,20 @@ func (k *KeyMapping) List() {
 	for k, v := range k.keys {
 		fmt.Printf("%s -> %s\n", k, v)
 	}
+}
+
+func (k *KeyMapping) String() string {
+	repos := make([]string, 0, len(k.keys))
+	for repo := range k.keys {
+		repos = append(repos, repo)
+	}
+	sort.Strings(repos)
+
+	var b strings.Builder
+	for _, repo := range repos {
+		fmt.Fprintf(&b, "%s -> %s\n", repo, k.keys[repo])
+	}
+	return b.String()
 }
 
 func (k *KeyMapping) Get(repo string) (string, error) {
@@ -124,8 +139,6 @@ func SaveKey(key string, repoPath string, keyName string) error {
 	if len(key) != n {
 		return fmt.Errorf("key save corrupted, key len: %d, written: %d", len(key), n)
 	}
-	log.Printf("DEBUG: key lenght written: %d, set key lenght: %d", n, keyLength)
-
 	mapping, err := NewKeyMapping()
 	if err != nil {
 		return err

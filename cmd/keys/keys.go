@@ -7,13 +7,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var KeysCmd = &cobra.Command{
-	Use:   "keys",
-	Short: "manage Your vault keys",
-}
+func NewCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "keys",
+		Short: "Manage vault keys",
+		Args:  cobra.NoArgs,
+	}
 
-func init() {
-	KeysCmd.AddCommand(add.AddKeyCmd)
-	KeysCmd.AddCommand(gen.GenKeyCmd)
-	KeysCmd.AddCommand(list.ListCmd)
+	cmd.AddCommand(add.NewCommand())
+	cmd.AddCommand(gen.NewCommand())
+	cmd.AddCommand(list.NewCommand())
+
+	return cmd
 }
