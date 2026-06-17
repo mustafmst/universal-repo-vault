@@ -42,26 +42,46 @@ var EncryptCmd = &cobra.Command{
 			return fmt.Errorf("listing files for enryption failed: %w", err)
 		}
 
-		// Create lockfile
+		// Create current hash state for change detection
 		hashes, err := files.NewFileHashCollection(repoPath, foundFiles)
 		if err != nil {
-			return fmt.Errorf("lockfile body creation failed: %w", err)
+			return fmt.Errorf("hash state creation failed: %w", err)
 		}
-		newLockfile := hashes.GetLockfileBody()
+
+		vaultPath := filepath.Join(repoPath, vault.VaultFileName)
+		oldVault, err := vault.NewVaultFromFilePath(vaultPath)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("reading old vault: %w", err)
+		}
+
+		oldHashes := map[string]string{}
+		if oldVault != nil {
+			oldHashes = oldVault.Hashes
+		}
+
+		lockPath := filepath.Join(repoPath, files.LockFileName)
 		oldLockfile, err := files.OpenLockFile(repoPath)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("reading old lockfile: %v", err)
+			return fmt.Errorf("reading old lockfile: %w", err)
 		}
-		newlockhash, err := files.GetHexHash(newLockfile)
-		if err != nil {
-			return fmt.Errorf("getting new lockfile hash failed: %w", err)
+		if len(oldHashes) == 0 && err == nil {
+			oldHashes, err = files.ParseLockFileBody(oldLockfile)
+			if err != nil {
+				return fmt.Errorf("parsing old lockfile: %w", err)
+			}
 		}
-		oldlockhash, err := files.GetHexHash(oldLockfile)
-		if err != nil {
-			return fmt.Errorf("getting old lockfile hash failed: %w", err)
-		}
-		if newlockhash == oldlockhash {
-			log.Println("Lockfile same as old one, nothing to encrypt")
+
+		if oldVault != nil && files.HashesEqual(hashes.Hashes, oldHashes) {
+			oldVault.Version = vault.VaultVersion
+			oldVault.Algo = vault.VaultAlgo
+			oldVault.Hashes = hashes.Hashes
+			if err := oldVault.SaveToFile(vaultPath); err != nil {
+				return err
+			}
+			if err := os.Remove(lockPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("removing old lockfile: %w", err)
+			}
+			log.Println("Vault hashes unchanged, nothing to encrypt")
 			return nil
 		}
 
@@ -77,18 +97,14 @@ var EncryptCmd = &cobra.Command{
 		}
 
 		// Save vault data
-		v := vault.NewVaultFromData(encryptedData)
-		err = v.SaveToFile(filepath.Join(repoPath, vault.VaultFileName))
+		v := vault.NewVaultFromData(encryptedData, hashes.Hashes)
+		err = v.SaveToFile(vaultPath)
 		if err != nil {
 			return err
 		}
 
-		// NOTE: Save new lockfile only after vault save finished successfully.
-		// In worst case scanario just remove failed lockfile
-		err = files.SaveLockFile(filepath.Join(repoPath, files.LockFileName), newLockfile)
-		if err != nil {
-			log.Printf("Lockfile saving failed. Vault regerenarion might be needed")
-			return fmt.Errorf("saving lockfile: %w", err)
+		if err := os.Remove(lockPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("removing old lockfile: %w", err)
 		}
 
 		log.Println("Vault saves successfully")

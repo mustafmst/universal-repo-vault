@@ -19,7 +19,7 @@ URV should make it easy to keep secret files out of Git while still keeping an e
 - Generate and store local encryption keys.
 - Map a local key to a repository.
 - Encrypt selected files into `.urv.vault.yaml`.
-- Track encrypted file hashes in `.urv.lock`.
+- Track encrypted file hashes in `.urv.vault.yaml`.
 - Decrypt the vault back into the working tree.
 
 ## Project Structure
@@ -31,7 +31,7 @@ URV should make it easy to keep secret files out of Git while still keeping an e
 - `cmd/decrypt/` implements `urv decrypt`.
 - `cmd/keys/` implements key management commands.
 - `internal/config/` loads and writes `.urv.yaml`.
-- `internal/files/` finds configured files and writes `.urv.lock`.
+- `internal/files/` finds configured files and computes file hashes.
 - `internal/repo/` detects the current Git repository.
 - `internal/vault/` handles key storage, zip archive creation, AES-GCM encryption, and vault YAML files.
 - `example-files/` contains example files used by the sample configuration.
@@ -113,9 +113,8 @@ urv encrypt
 This creates or updates:
 
 - `.urv.vault.yaml`
-- `.urv.lock`
 
-Commit `.urv.yaml`, `.urv.vault.yaml`, and `.urv.lock` to Git. Do not commit the plaintext secret files unless that is intentional.
+Commit `.urv.yaml` and `.urv.vault.yaml` to Git. Do not commit the plaintext secret files unless that is intentional.
 
 On another machine, add or map the same key, then decrypt the vault:
 
@@ -219,8 +218,7 @@ Keys are local machine state. They are not written to `.urv.vault.yaml` and shou
 URV uses these files in the repository:
 
 - `.urv.yaml` stores repository configuration.
-- `.urv.lock` stores hashes of files included in the last encryption run.
-- `.urv.vault.yaml` stores encrypted vault data.
+- `.urv.vault.yaml` stores encrypted vault data and hashes of files included in the last encryption run.
 
 URV also uses these local user files:
 

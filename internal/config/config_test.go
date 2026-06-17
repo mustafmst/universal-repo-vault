@@ -86,6 +86,7 @@ func TestInitialize(t *testing.T) {
 	tests := []struct {
 		name       string
 		setup      func(t *testing.T, dir string)
+		want       *Config
 		wantErr    bool
 		errMessage string
 	}{
@@ -94,18 +95,18 @@ func TestInitialize(t *testing.T) {
 			setup: func(t *testing.T, dir string) {
 				t.Helper()
 			},
+			want: &Config{SecretFiles: []string{".env"}, Patterns: []string{"*.secret.*"}},
 		},
 		{
 			name: "does not overwrite existing config",
 			setup: func(t *testing.T, dir string) {
 				t.Helper()
 
-				if err := os.WriteFile(filepath.Join(dir, configFileName), []byte("secretfiles:\n  - .env\n"), 0o644); err != nil {
+				if err := os.WriteFile(filepath.Join(dir, configFileName), []byte("secretfiles:\n  - custom.env\n"), 0o644); err != nil {
 					t.Fatal(err)
 				}
 			},
-			wantErr:    true,
-			errMessage: "initializing config file",
+			want: &Config{SecretFiles: []string{"custom.env"}},
 		},
 	}
 
@@ -135,9 +136,8 @@ func TestInitialize(t *testing.T) {
 				t.Fatalf("expected initialized config to load, got %v", err)
 			}
 
-			want := &Config{SecretFiles: []string{".env"}, Patterns: []string{"*.secret.*"}}
-			if !reflect.DeepEqual(got, want) {
-				t.Fatalf("expected %#v, got %#v", want, got)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("expected %#v, got %#v", tt.want, got)
 			}
 		})
 	}

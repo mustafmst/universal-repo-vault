@@ -8,14 +8,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"strings"
 )
 
 const LockFileName string = ".urv.lock"
 
 type FileHasheCollection struct {
-	Hashes     map[string]string
-	sortedKeys []string
+	Hashes map[string]string
 }
 
 type FileHash struct {
@@ -50,8 +49,7 @@ func (h *FileHash) GetHexString() string {
 
 func NewFileHashCollection(basePath string, files []string) (*FileHasheCollection, error) {
 	res := &FileHasheCollection{
-		Hashes:     map[string]string{},
-		sortedKeys: []string{},
+		Hashes: map[string]string{},
 	}
 	errs := []error{}
 	for _, f := range files {
@@ -61,34 +59,49 @@ func NewFileHashCollection(basePath string, files []string) (*FileHasheCollectio
 			continue
 		}
 		res.Hashes[f] = fh.GetHexString()
-		res.sortedKeys = append(res.sortedKeys, f)
 	}
 	if len(errs) > 0 {
 		return nil, fmt.Errorf("collecting hashes for files: %w", errors.Join(errs...))
 	}
-	sort.Strings(res.sortedKeys)
 	return res, nil
-}
-
-func (c *FileHasheCollection) GetLockfileBody() []byte {
-	body := []byte{}
-	for _, k := range c.sortedKeys {
-		body = append(body, []byte(fmt.Sprintf("%s: %s\n", k, c.Hashes[k]))...)
-	}
-	return body
-}
-
-func SaveLockFile(filePath string, body []byte) error {
-	n, err := SaveDataToFile(filePath, body, true)
-	if err != nil {
-		return err
-	}
-	if n != len(body) {
-		return fmt.Errorf("lockafile save incomplete")
-	}
-	return nil
 }
 
 func OpenLockFile(repoPath string) ([]byte, error) {
 	return os.ReadFile(filepath.Join(repoPath, LockFileName))
+}
+
+func ParseLockFileBody(body []byte) (map[string]string, error) {
+	hashes := map[string]string{}
+	for _, line := range strings.Split(string(body), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		path, hash, ok := strings.Cut(line, ":")
+		if !ok {
+			return nil, fmt.Errorf("invalid lockfile line: %s", line)
+		}
+
+		path = strings.TrimSpace(path)
+		hash = strings.TrimSpace(hash)
+		if path == "" || hash == "" {
+			return nil, fmt.Errorf("invalid lockfile line: %s", line)
+		}
+
+		hashes[path] = hash
+	}
+	return hashes, nil
+}
+
+func HashesEqual(a map[string]string, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, av := range a {
+		if b[k] != av {
+			return false
+		}
+	}
+	return true
 }
