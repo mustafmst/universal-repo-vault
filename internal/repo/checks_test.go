@@ -129,6 +129,15 @@ func TestGetRepoPathForPath(t *testing.T) {
 			},
 			wantErr: ErrNoRepoFound,
 		},
+		{
+			name: "returns ErrNoRepoFound for relative path when no repo exists",
+			setup: func(t *testing.T, dir string) (string, string) {
+				t.Helper()
+				t.Chdir(dir)
+				return ".", ""
+			},
+			wantErr: ErrNoRepoFound,
+		},
 	}
 
 	for _, tt := range tests {
@@ -149,6 +158,72 @@ func TestGetRepoPathForPath(t *testing.T) {
 
 			if got != wantPath {
 				t.Fatalf("expected %q, got %q", wantPath, got)
+			}
+		})
+	}
+}
+
+func TestCheckGitignore(t *testing.T) {
+	tests := []struct {
+		name        string
+		setup       func(t *testing.T, dir string)
+		wantContent string
+	}{
+		{
+			name: "creates missing gitignore",
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+			},
+			wantContent: ".urvtemp\n",
+		},
+		{
+			name: "appends to existing gitignore",
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				if err := os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("node_modules\n"), 0o664); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantContent: "node_modules\n.urvtemp\n",
+		},
+		{
+			name: "adds newline before appending when needed",
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				if err := os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("node_modules"), 0o664); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantContent: "node_modules\n.urvtemp\n",
+		},
+		{
+			name: "does not duplicate existing entry",
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				if err := os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("node_modules\n.urvtemp\n"), 0o664); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantContent: "node_modules\n.urvtemp\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			tt.setup(t, dir)
+
+			if err := CheckGitignore(dir); err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+
+			data, err := os.ReadFile(filepath.Join(dir, ".gitignore"))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if string(data) != tt.wantContent {
+				t.Fatalf("expected %q, got %q", tt.wantContent, string(data))
 			}
 		})
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 var ErrNoRepoFound error = errors.New("no repo found")
@@ -28,21 +29,26 @@ func checkDirGitRepo(dirPath string) (bool, error) {
 }
 
 func getRepoPathForPath(dirPath string) (string, error) {
-	absPath, err := filepath.Abs(dirPath)
+	currentPath, err := filepath.Abs(dirPath)
 	if err != nil {
 		return "", fmt.Errorf("getting abs path: %w", err)
 	}
-	if absPath == "/" || absPath == filepath.Dir(absPath) {
-		return "", ErrNoRepoFound
+
+	for {
+		isGitRepo, err := checkDirGitRepo(currentPath)
+		if err != nil {
+			return "", fmt.Errorf("checking if path is a git repo: %w", err)
+		}
+		if isGitRepo {
+			return currentPath, nil
+		}
+
+		parentPath := filepath.Dir(currentPath)
+		if currentPath == parentPath {
+			return "", ErrNoRepoFound
+		}
+		currentPath = parentPath
 	}
-	isGitRepo, err := checkDirGitRepo(absPath)
-	if err != nil {
-		return "", fmt.Errorf("checking if path is a git repo: %w", err)
-	}
-	if isGitRepo {
-		return absPath, nil
-	}
-	return getRepoPathForPath(filepath.Dir(dirPath))
 }
 
 func GetCurrentRepoPath() (string, error) {
@@ -55,35 +61,27 @@ func GetCurrentRepoPath() (string, error) {
 
 func CheckGitignore(repoPath string) error {
 	fullPath := filepath.Join(repoPath, ".gitignore")
-	_, err := os.Stat(fullPath)
+	data, err := os.ReadFile(fullPath)
 
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
 	if err != nil {
-		f, err := os.Create(fullPath)
-		if err != nil {
-			return err
+		return os.WriteFile(fullPath, []byte(tempDir+"\n"), 0o664)
+	}
+
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.TrimSpace(line) == tempDir {
+			return nil
 		}
-		defer f.Close()
-
-		_, err = f.WriteString(tempDir)
-		if err != nil {
-			return err
-		}
-		return nil
 	}
 
-	f, err := os.Open(fullPath)
-	if err != nil {
-		return err
+	contents := string(data)
+	if contents != "" && !strings.HasSuffix(contents, "\n") {
+		contents += "\n"
 	}
-	defer f.Close()
+	contents += tempDir + "\n"
 
-	_, err = f.WriteString(tempDir)
-	if err != nil {
-		return err
-	}
-	return nil
+	return os.WriteFile(fullPath, []byte(contents), 0o664)
 }

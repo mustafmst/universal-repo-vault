@@ -27,6 +27,11 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf(errorFormat, err)
 		}
 
+		err = repo.CheckGitignore(repoDir)
+		if err != nil {
+			return fmt.Errorf(errorFormat, err)
+		}
+
 		log.Printf("Configuration successfuly initialized in %s", repoDir)
 		log.Printf("List Your secret files in %s.urv for future management", repoDir)
 		return nil
