@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/mustafmst/universal-repo-vault/internal/archive"
 	"github.com/mustafmst/universal-repo-vault/internal/config"
 	"github.com/mustafmst/universal-repo-vault/internal/files"
 	"github.com/mustafmst/universal-repo-vault/internal/vault"
@@ -72,7 +73,7 @@ func EncryptRepo(repoPath string) (*EncryptResult, error) {
 		return &EncryptResult{Encrypted: false}, nil
 	}
 
-	data, err := vault.CreateZipVaultData(repoPath, foundFiles)
+	data, err := archive.NewZipArchiver().Pack(repoPath, foundFiles)
 	if err != nil {
 		return nil, fmt.Errorf("creating secret archive: %w", err)
 	}

@@ -3,6 +3,7 @@ package app
 import (
 	"path/filepath"
 
+	"github.com/mustafmst/universal-repo-vault/internal/archive"
 	"github.com/mustafmst/universal-repo-vault/internal/vault"
 )
 
@@ -30,5 +31,5 @@ func DecryptRepo(repoPath string) error {
 		return err
 	}
 
-	return vault.UnpackZipVaultData(repoPath, decryptedArch)
+	return archive.NewZipArchiver().Unpack(repoPath, decryptedArch, true)
 }
