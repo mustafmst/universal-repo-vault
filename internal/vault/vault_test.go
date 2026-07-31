@@ -50,6 +50,37 @@ func TestNewVaultFromFilePathLoadsV1Vault(t *testing.T) {
 	}
 }
 
+func TestSaveToFileWritesCompatibleVaultYAML(t *testing.T) {
+	dir := t.TempDir()
+	vaultPath := filepath.Join(dir, VaultFileName)
+	v := NewVaultFromData([]byte("secret"), map[string]string{".env": "abc123"})
+
+	if err := v.SaveToFile(vaultPath); err != nil {
+		t.Fatalf("expected save to succeed, got %v", err)
+	}
+
+	loaded, err := NewVaultFromFilePath(vaultPath)
+	if err != nil {
+		t.Fatalf("expected load to succeed, got %v", err)
+	}
+	if loaded.Version != VaultVersion {
+		t.Fatalf("expected version %q, got %q", VaultVersion, loaded.Version)
+	}
+	if loaded.Algo != VaultAlgo {
+		t.Fatalf("expected algo %q, got %q", VaultAlgo, loaded.Algo)
+	}
+	if loaded.Hashes[".env"] != "abc123" {
+		t.Fatalf("unexpected hashes: %#v", loaded.Hashes)
+	}
+	data, err := loaded.GetByteData()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "secret" {
+		t.Fatalf("expected decoded data, got %q", string(data))
+	}
+}
+
 func TestValidateForDecryptRejectsUnsupportedVersionAndAlgo(t *testing.T) {
 	tests := []struct {
 		name string

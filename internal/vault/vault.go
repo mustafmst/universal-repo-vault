@@ -2,7 +2,6 @@ package vault
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"os"
 
@@ -41,17 +40,11 @@ func (v *Vault) ValidateForDecrypt() error {
 }
 
 func (v *Vault) SaveToFile(filePath string) error {
-	_, err := os.Stat(filePath)
-	if errors.Is(err, os.ErrNotExist) {
-		f, _ := os.Create(filePath)
-		f.Close()
-	}
 	data, err := yaml.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("marshalling vault to yaml: %w", err)
 	}
-	err = os.WriteFile(filePath, data, 0o664)
-	if err != nil {
+	if err := os.WriteFile(filePath, data, 0o664); err != nil {
 		return fmt.Errorf("writing vault data to file %s: %w", filePath, err)
 	}
 	return nil
