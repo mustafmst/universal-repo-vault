@@ -6,13 +6,25 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 var ErrNotReplacingFile error = errors.New("file was not replaced")
 
 // ListAllConfiguredFiles gathers a list of absolute file paths for files matching configuration
 func ListAllConfiguredFiles(basePath string, fileList []string, patternlist []string) ([]string, error) {
-	result := []string{}
+	explicit := map[string]struct{}{}
+	for _, f := range fileList {
+		explicit[filepath.ToSlash(filepath.Clean(f))] = struct{}{}
+	}
+
+	for _, p := range patternlist {
+		if _, err := filepath.Match(p, ""); err != nil {
+			return nil, fmt.Errorf("invalid file pattern %q: %w", p, err)
+		}
+	}
+
+	seen := map[string]struct{}{}
 	err := filepath.WalkDir(basePath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -29,24 +41,38 @@ func ListAllConfiguredFiles(basePath string, fileList []string, patternlist []st
 		if err != nil {
 			return err
 		}
+		relPath = filepath.ToSlash(filepath.Clean(relPath))
 
-		for _, f := range fileList {
-			if relPath == f {
-				result = append(result, relPath)
-			}
+		matched := false
+		if _, ok := explicit[relPath]; ok {
+			matched = true
 		}
 
 		for _, p := range patternlist {
-			if matched, _ := filepath.Match(p, d.Name()); matched {
-				result = append(result, relPath)
+			ok, err := filepath.Match(p, d.Name())
+			if err != nil {
+				return fmt.Errorf("invalid file pattern %q: %w", p, err)
 			}
+			if ok {
+				matched = true
+			}
+		}
+
+		if matched {
+			seen[relPath] = struct{}{}
 		}
 
 		return nil
 	})
 	if err != nil {
-		return result, fmt.Errorf("listing files: %w", err)
+		return nil, fmt.Errorf("listing files: %w", err)
 	}
+
+	result := make([]string, 0, len(seen))
+	for path := range seen {
+		result = append(result, path)
+	}
+	sort.Strings(result)
 	return result, nil
 }
 
@@ -73,6 +99,11 @@ func SaveDataToFile(fullPath string, data []byte, replace bool) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("creating file %s: %w", fullPath, err)
 	}
+	defer f.Close()
 
-	return f.Write(data)
+	n, err := f.Write(data)
+	if err != nil {
+		return n, err
+	}
+	return n, nil
 }

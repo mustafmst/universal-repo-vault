@@ -36,6 +36,7 @@ func GetFileHash(absPath string) (*FileHash, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening file for hashing: %w", err)
 	}
+	defer f.Close()
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
 		return nil, fmt.Errorf("coping from file to hash: %w", err)
