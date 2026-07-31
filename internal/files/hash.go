@@ -13,7 +13,7 @@ import (
 
 const LockFileName string = ".urv.lock"
 
-type FileHasheCollection struct {
+type FileHashCollection struct {
 	Hashes map[string]string
 }
 
@@ -48,8 +48,8 @@ func (h *FileHash) GetHexString() string {
 	return hex.EncodeToString(h.Hash)
 }
 
-func NewFileHashCollection(basePath string, files []string) (*FileHasheCollection, error) {
-	res := &FileHasheCollection{
+func NewFileHashCollection(basePath string, files []string) (*FileHashCollection, error) {
+	res := &FileHashCollection{
 		Hashes: map[string]string{},
 	}
 	errs := []error{}
