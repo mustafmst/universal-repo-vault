@@ -30,10 +30,14 @@ URV should make it easy to keep secret files out of Git while still keeping an e
 - `cmd/encrypt/` implements `urv encrypt`.
 - `cmd/decrypt/` implements `urv decrypt`.
 - `cmd/keys/` implements key management commands.
+- `internal/app/` coordinates encrypt and decrypt workflows.
+- `internal/archive/` packs and unpacks vault archive data. The current implementation uses ZIP.
 - `internal/config/` loads and writes `.urv.yaml`.
+- `internal/crypto/` encrypts and decrypts archive bytes. The current implementation uses AES-GCM.
 - `internal/files/` finds configured files and computes file hashes.
+- `internal/keystore/` manages local key files and repository-to-key mappings.
 - `internal/repo/` detects the current Git repository.
-- `internal/vault/` handles key storage, zip archive creation, AES-GCM encryption, and vault YAML files.
+- `internal/vault/` reads, validates, and writes `.urv.vault.yaml`.
 - `example-files/` contains example files used by the sample configuration.
 
 ## Installation

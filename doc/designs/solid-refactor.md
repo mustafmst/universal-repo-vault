@@ -1,12 +1,16 @@
-# SOLID code refactor
+# Layered refactor
 
-After getting to a state of working as a code spagetti I need to refactor this solution so it is easier to add new way of working like different cryptograpthic algorithms or archival methods
+The rough SOLID refactor idea has been formalized in:
 
-## Plan
+- `docs/superpowers/specs/2026-07-31-layered-refactor-design.md`
+- `docs/superpowers/plans/2026-07-31-layered-refactor.md`
 
-1. Create vault object that will be initialized with a repo path that:
-   - will load vauld data and lockfile data (maybe combine them together)
-   - config provider injected
-   - get cypher and archiver builder injected and then build those based on config
-1. Create archivere adn archiver builder
-1. create cypher and cypher builder that kas key injected
+The accepted direction is a layered refactor with compatibility adapters:
+
+- `internal/app` coordinates workflows.
+- `internal/archive` owns ZIP archive packing and unpacking.
+- `internal/crypto` owns AES-GCM encryption and decryption.
+- `internal/keystore` owns local keys and repo mappings.
+- `internal/vault` owns `.urv.vault.yaml` metadata compatibility.
+
+Existing `.urv.yaml`, `.urv.vault.yaml`, local key files, and mapping files remain valid.

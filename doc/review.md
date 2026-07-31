@@ -56,29 +56,31 @@
 
    Change needed: pass `&c`. Also add a test for `ConfigProvider`.
 
-9. **P2: Vault metadata is not validated**
+9. ~**P2: Vault metadata is not validated**~
    `internal/vault/vault.go:27-29`, `cmd/decrypt/decrypt.go:25-30`
 
    `GetByteData` ignores invalid hex, and decrypt never checks `v.Algo`. A corrupt or unsupported vault gives misleading AES errors or decrypts empty data.
 
    Change needed: make hex decode return an error and reject unsupported `algo` values.
 
-10. **P2: File discovery can silently produce wrong vault contents**
+10. ~**P2: File discovery can silently produce wrong vault contents**~
     `internal/files/files.go:33-42`
 
     Invalid glob patterns are ignored, and files can be added twice if they match both explicit `secretfiles` and `patterns`.
 
     Change needed: return pattern errors and de-duplicate discovered paths before hashing/zipping.
 
-11. **P3: `CheckGitignore` is broken and currently unsafe to use**
+11. ~**P3: `CheckGitignore` is broken and currently unsafe to use**~
     `internal/repo/checks.go:78-85`
 
     It opens `.gitignore` read-only and then writes to it, which will fail. It also does not append a newline or check for an existing `.urvtemp` entry.
 
     Change needed: open with append/write flags and avoid duplicate entries, or remove the function if unused.
 
-12. **P3: Tests miss the highest-risk behavior**
+12. ~**P3: Tests miss the highest-risk behavior**~
 
     Current tests cover AES and some config/repo basics, but not encrypt/decrypt workflow, lockfile consistency, key permissions, zip traversal, duplicate file discovery, or command error exits.
 
     Change needed: add tests around the CLI workflow and vault unpacking before refactoring further.
+
+    Added package and workflow coverage for archive, crypto, keystore, file discovery, vault metadata, and app encrypt/decrypt behavior.
