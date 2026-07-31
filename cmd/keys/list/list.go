@@ -3,7 +3,7 @@ package list
 import (
 	"fmt"
 
-	"github.com/mustafmst/universal-repo-vault/internal/vault"
+	"github.com/mustafmst/universal-repo-vault/internal/keystore"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +17,7 @@ func NewCommand() *cobra.Command {
 }
 
 func runList(cmd *cobra.Command, args []string) error {
-	mapping, err := vault.NewKeyMapping()
+	mapping, err := keystore.NewDefaultFileStore().Mapping()
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mustafmst/universal-repo-vault/internal/keystore"
 	"github.com/mustafmst/universal-repo-vault/internal/vault"
 )
 
@@ -31,7 +32,7 @@ func setupRepoAndHome(t *testing.T) (repoPath string, homePath string) {
 	writeFile(t, filepath.Join(repoPath, ".urv.yaml"), "secretfiles:\n  - .env\npatterns:\n  - \"*.secret.*\"\n", 0o644)
 	writeFile(t, filepath.Join(repoPath, ".env"), "API_KEY=one\n", 0o600)
 	writeFile(t, filepath.Join(repoPath, "nested", "app.secret.yaml"), "password: one\n", 0o600)
-	if err := vault.SaveKey(appTestKey, repoPath, "repo-key"); err != nil {
+	if err := keystore.NewDefaultFileStore().SaveKey(appTestKey, repoPath, "repo-key"); err != nil {
 		t.Fatal(err)
 	}
 	return repoPath, homePath

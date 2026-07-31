@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/mustafmst/universal-repo-vault/internal/keystore"
 	"github.com/mustafmst/universal-repo-vault/internal/repo"
-	"github.com/mustafmst/universal-repo-vault/internal/vault"
 	"github.com/spf13/cobra"
 )
 
@@ -44,14 +44,7 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	if keyName != "" {
-		mapping, err := vault.NewKeyMapping()
-		if err != nil {
-			return err
-		}
-		if err := mapping.UseKeyForRepo(keyName, repoPath); err != nil {
-			return err
-		}
-		return mapping.Save()
+		return keystore.NewDefaultFileStore().UseKeyForRepo(keyName, repoPath)
 	}
 
 	file, err = filepath.Abs(file)
@@ -63,7 +56,7 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	err = vault.SaveKeyWithRepoName(string(key), repoPath)
+	err = keystore.NewDefaultFileStore().SaveKey(string(key), repoPath, filepath.Base(repoPath))
 	if err != nil {
 		return err
 	}

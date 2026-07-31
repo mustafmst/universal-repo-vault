@@ -2,9 +2,10 @@ package gen
 
 import (
 	"fmt"
+	"path/filepath"
 
+	"github.com/mustafmst/universal-repo-vault/internal/keystore"
 	"github.com/mustafmst/universal-repo-vault/internal/repo"
-	"github.com/mustafmst/universal-repo-vault/internal/vault"
 	"github.com/spf13/cobra"
 )
 
@@ -24,22 +25,23 @@ func runGen(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	key, err := vault.GenNewKey()
+	key, err := keystore.GenerateKey()
 	if err != nil {
 		return err
 	}
+	store := keystore.NewDefaultFileStore()
 	name, err := cmd.Flags().GetString("name")
 	if err != nil {
 		return err
 	}
 	if name != "" {
-		if err := vault.SaveKey(key, repoPath, name); err != nil {
+		if err := store.SaveKey(key, repoPath, name); err != nil {
 			return err
 		}
 		_, err = fmt.Fprintln(cmd.OutOrStdout(), "Key saved to ~/.config/urv/keys")
 		return err
 	}
-	err = vault.SaveKeyWithRepoName(key, repoPath)
+	err = store.SaveKey(key, repoPath, filepath.Base(repoPath))
 	if err != nil {
 		return err
 	}

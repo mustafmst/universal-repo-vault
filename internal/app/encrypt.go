@@ -10,6 +10,7 @@ import (
 	"github.com/mustafmst/universal-repo-vault/internal/config"
 	urvcrypto "github.com/mustafmst/universal-repo-vault/internal/crypto"
 	"github.com/mustafmst/universal-repo-vault/internal/files"
+	"github.com/mustafmst/universal-repo-vault/internal/keystore"
 	"github.com/mustafmst/universal-repo-vault/internal/vault"
 )
 
@@ -23,7 +24,7 @@ func EncryptRepo(repoPath string) (*EncryptResult, error) {
 		return nil, err
 	}
 
-	key, err := vault.GetKeyForRepo(repoPath)
+	key, err := keystore.NewDefaultFileStore().KeyForRepo(repoPath)
 	if err != nil {
 		return nil, err
 	}

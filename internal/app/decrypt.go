@@ -5,11 +5,12 @@ import (
 
 	"github.com/mustafmst/universal-repo-vault/internal/archive"
 	urvcrypto "github.com/mustafmst/universal-repo-vault/internal/crypto"
+	"github.com/mustafmst/universal-repo-vault/internal/keystore"
 	"github.com/mustafmst/universal-repo-vault/internal/vault"
 )
 
 func DecryptRepo(repoPath string) error {
-	key, err := vault.GetKeyForRepo(repoPath)
+	key, err := keystore.NewDefaultFileStore().KeyForRepo(repoPath)
 	if err != nil {
 		return err
 	}
