@@ -80,7 +80,7 @@ func EncryptRepo(repoPath string) (*EncryptResult, error) {
 		return nil, fmt.Errorf("creating secret archive: %w", err)
 	}
 
-	cipher, err := urvcrypto.NewCipher(vault.VaultAlgo, key)
+	cipher, err := urvcrypto.NewCipher(cfg.CipherName(), key)
 	if err != nil {
 		return nil, fmt.Errorf("creating cipher: %w", err)
 	}

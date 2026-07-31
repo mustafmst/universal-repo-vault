@@ -11,8 +11,10 @@ import (
 )
 
 const (
-	configFileName string = ".urv.yaml"
-	configFileType string = "yaml"
+	configFileName  string = ".urv.yaml"
+	configFileType  string = "yaml"
+	defaultArchiver        = "zip"
+	defaultCypher          = "aes-gcm"
 )
 
 var ErrConfigNotExist error = errors.New("config not exist")
@@ -44,27 +46,41 @@ func (cp *ConfigProvider) Get() (*Config, error) {
 
 	rawData, err := os.ReadFile(cp.GetConfigPath())
 	if err != nil && errors.Is(err, os.ErrNotExist) {
-		cp.config = defaultConfig()
+		cp.config = Default()
 		return cp.config, fmt.Errorf("getting config for repo in %s: %w", cp.repoPath, err)
 	}
 	var c Config
 
 	err = yaml.Unmarshal(rawData, &c)
 	if err != nil {
-		cp.config = defaultConfig()
+		cp.config = Default()
 		return cp.config, fmt.Errorf("deserializing config for repo in %s: %w", cp.repoPath, err)
 	}
 	cp.config = &c
 	return cp.config, nil
 }
 
-func defaultConfig() *Config {
+func Default() *Config {
 	return &Config{
 		SecretFiles: []string{".env"},
 		Patterns:    []string{"*.secret.*"},
-		Archiver:    "zip",
-		Cypher:      "aes-gcm",
+		Archiver:    defaultArchiver,
+		Cypher:      defaultCypher,
 	}
+}
+
+func (c *Config) ArchiverName() string {
+	if c.Archiver == "" {
+		return defaultArchiver
+	}
+	return c.Archiver
+}
+
+func (c *Config) CipherName() string {
+	if c.Cypher == "" {
+		return defaultCypher
+	}
+	return c.Cypher
 }
 
 // Load reads configuration from given path and return deserialized object

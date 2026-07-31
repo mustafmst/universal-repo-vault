@@ -82,6 +82,35 @@ func TestLoad(t *testing.T) {
 	}
 }
 
+func TestLoadKeepsExistingFieldsIncludingCypher(t *testing.T) {
+	dir := t.TempDir()
+	body := []byte("secretfiles:\n  - .env\npatterns:\n  - \"*.secret.*\"\narchiver: zip\ncypher: aes-gcm\n")
+	if err := os.WriteFile(filepath.Join(dir, ".urv.yaml"), body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("expected load to succeed, got %v", err)
+	}
+	if cfg.ArchiverName() != "zip" {
+		t.Fatalf("expected zip archiver, got %q", cfg.ArchiverName())
+	}
+	if cfg.CipherName() != "aes-gcm" {
+		t.Fatalf("expected aes-gcm cipher, got %q", cfg.CipherName())
+	}
+}
+
+func TestConfigDefaultsArchiverAndCypherWhenEmpty(t *testing.T) {
+	cfg := &Config{}
+	if cfg.ArchiverName() != "zip" {
+		t.Fatalf("expected default archiver zip, got %q", cfg.ArchiverName())
+	}
+	if cfg.CipherName() != "aes-gcm" {
+		t.Fatalf("expected default cipher aes-gcm, got %q", cfg.CipherName())
+	}
+}
+
 func TestInitialize(t *testing.T) {
 	tests := []struct {
 		name       string
