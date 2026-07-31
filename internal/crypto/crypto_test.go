@@ -1,4 +1,4 @@
-package vault
+package crypto
 
 import (
 	"bytes"
@@ -131,5 +131,15 @@ func TestDecryptRejectsTamperedCiphertext(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Fatalf("expected empty result, got %v", got)
+	}
+}
+
+func TestNewCipherRejectsUnsupportedCipher(t *testing.T) {
+	_, err := NewCipher("other", testKey)
+	if err == nil {
+		t.Fatal("expected unsupported cipher error, got nil")
+	}
+	if !strings.Contains(err.Error(), "unsupported cipher") {
+		t.Fatalf("expected unsupported cipher error, got %v", err)
 	}
 }

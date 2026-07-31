@@ -8,6 +8,7 @@ import (
 
 	"github.com/mustafmst/universal-repo-vault/internal/archive"
 	"github.com/mustafmst/universal-repo-vault/internal/config"
+	urvcrypto "github.com/mustafmst/universal-repo-vault/internal/crypto"
 	"github.com/mustafmst/universal-repo-vault/internal/files"
 	"github.com/mustafmst/universal-repo-vault/internal/vault"
 )
@@ -78,7 +79,11 @@ func EncryptRepo(repoPath string) (*EncryptResult, error) {
 		return nil, fmt.Errorf("creating secret archive: %w", err)
 	}
 
-	encryptedData, err := vault.AesGcmEncrypt(key, data)
+	cipher, err := urvcrypto.NewCipher(vault.VaultAlgo, key)
+	if err != nil {
+		return nil, fmt.Errorf("creating cipher: %w", err)
+	}
+	encryptedData, err := cipher.Encrypt(data)
 	if err != nil {
 		return nil, fmt.Errorf("encryption error: %w", err)
 	}

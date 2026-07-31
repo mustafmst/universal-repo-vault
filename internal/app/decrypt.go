@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 
 	"github.com/mustafmst/universal-repo-vault/internal/archive"
+	urvcrypto "github.com/mustafmst/universal-repo-vault/internal/crypto"
 	"github.com/mustafmst/universal-repo-vault/internal/vault"
 )
 
@@ -26,7 +27,11 @@ func DecryptRepo(repoPath string) error {
 		return err
 	}
 
-	decryptedArch, err := vault.AesGcmDecrypt(key, vaultData)
+	cipher, err := urvcrypto.NewCipher(v.Algo, key)
+	if err != nil {
+		return err
+	}
+	decryptedArch, err := cipher.Decrypt(vaultData)
 	if err != nil {
 		return err
 	}

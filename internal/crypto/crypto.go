@@ -1,4 +1,4 @@
-package vault
+package crypto
 
 import (
 	"crypto/aes"
@@ -9,47 +9,55 @@ import (
 	"io"
 )
 
+const AesGcmName = "aes-gcm"
+
+type Cipher interface {
+	Encrypt(data []byte) ([]byte, error)
+	Decrypt(data []byte) ([]byte, error)
+	Name() string
+}
+
 type AesGcmCipher struct {
 	key []byte
 }
 
+func (agc *AesGcmCipher) Name() string {
+	return AesGcmName
+}
+
 func (agc *AesGcmCipher) Encrypt(data []byte) ([]byte, error) {
-	res := []byte{}
 	b, err := aes.NewCipher(agc.key)
 	if err != nil {
-		return res, err
+		return nil, err
 	}
 
 	gcm, err := cipher.NewGCM(b)
 	if err != nil {
-		return res, err
+		return nil, err
 	}
 
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return res, err
+		return nil, err
 	}
 
-	res = gcm.Seal(nonce, nonce, data, nil)
-
-	return res, nil
+	return gcm.Seal(nonce, nonce, data, nil), nil
 }
 
 func (agc *AesGcmCipher) Decrypt(data []byte) ([]byte, error) {
-	res := []byte{}
 	b, err := aes.NewCipher(agc.key)
 	if err != nil {
-		return res, err
+		return nil, err
 	}
 
 	gcm, err := cipher.NewGCM(b)
 	if err != nil {
-		return res, err
+		return nil, err
 	}
 
 	nonceSize := gcm.NonceSize()
 	if len(data) < nonceSize {
-		return res, fmt.Errorf("cipher too small")
+		return nil, fmt.Errorf("cipher too small")
 	}
 
 	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
@@ -68,9 +76,16 @@ func NewAesGcm(key []byte) (*AesGcmCipher, error) {
 	if len(key) != 32 {
 		return nil, fmt.Errorf("expected key length is 32 bytes, got: %d", len(key))
 	}
-	return &AesGcmCipher{
-		key,
-	}, nil
+	return &AesGcmCipher{key: key}, nil
+}
+
+func NewCipher(name string, hexKey string) (Cipher, error) {
+	switch name {
+	case AesGcmName:
+		return NewAesGcmFromHexKey(hexKey)
+	default:
+		return nil, fmt.Errorf("unsupported cipher: %s", name)
+	}
 }
 
 func AesGcmEncrypt(key string, data []byte) ([]byte, error) {
