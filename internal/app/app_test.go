@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mustafmst/universal-repo-vault/internal/archive"
 	"github.com/mustafmst/universal-repo-vault/internal/keystore"
 	"github.com/mustafmst/universal-repo-vault/internal/vault"
 )
@@ -98,5 +99,42 @@ func TestEncryptRepoReturnsUnchangedWhenHashesMatchVault(t *testing.T) {
 	}
 	if second.Encrypted {
 		t.Fatal("expected unchanged hashes to skip encryption")
+	}
+}
+
+func TestEncryptDecryptRepoWithServicesRoundTrip(t *testing.T) {
+	repoPath := t.TempDir()
+	homePath := t.TempDir()
+	if err := os.Mkdir(filepath.Join(repoPath, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(repoPath, ".urv.yaml"), "secretfiles:\n  - .env\n", 0o644)
+	writeFile(t, filepath.Join(repoPath, ".env"), "API_KEY=two\n", 0o600)
+
+	store := keystore.NewFileStore(homePath)
+	if err := store.SaveKey(appTestKey, repoPath, "repo-key"); err != nil {
+		t.Fatal(err)
+	}
+
+	services := Services{
+		Archiver: archive.NewZipArchiver(),
+		KeyStore: store,
+	}
+
+	if _, err := EncryptRepoWithServices(repoPath, services); err != nil {
+		t.Fatalf("expected encrypt to succeed, got %v", err)
+	}
+	if err := os.Remove(filepath.Join(repoPath, ".env")); err != nil {
+		t.Fatal(err)
+	}
+	if err := DecryptRepoWithServices(repoPath, services); err != nil {
+		t.Fatalf("expected decrypt to succeed, got %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(repoPath, ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "API_KEY=two\n" {
+		t.Fatalf("unexpected env contents: %q", string(got))
 	}
 }

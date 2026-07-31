@@ -6,11 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mustafmst/universal-repo-vault/internal/archive"
 	"github.com/mustafmst/universal-repo-vault/internal/config"
 	urvcrypto "github.com/mustafmst/universal-repo-vault/internal/crypto"
 	"github.com/mustafmst/universal-repo-vault/internal/files"
-	"github.com/mustafmst/universal-repo-vault/internal/keystore"
 	"github.com/mustafmst/universal-repo-vault/internal/vault"
 )
 
@@ -19,12 +17,17 @@ type EncryptResult struct {
 }
 
 func EncryptRepo(repoPath string) (*EncryptResult, error) {
+	return EncryptRepoWithServices(repoPath, DefaultServices())
+}
+
+func EncryptRepoWithServices(repoPath string, services Services) (*EncryptResult, error) {
+	services = services.withDefaults()
 	cfg, err := config.Load(repoPath)
 	if err != nil {
 		return nil, err
 	}
 
-	key, err := keystore.NewDefaultFileStore().KeyForRepo(repoPath)
+	key, err := services.KeyStore.KeyForRepo(repoPath)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +78,7 @@ func EncryptRepo(repoPath string) (*EncryptResult, error) {
 		return &EncryptResult{Encrypted: false}, nil
 	}
 
-	data, err := archive.NewZipArchiver().Pack(repoPath, foundFiles)
+	data, err := services.Archiver.Pack(repoPath, foundFiles)
 	if err != nil {
 		return nil, fmt.Errorf("creating secret archive: %w", err)
 	}

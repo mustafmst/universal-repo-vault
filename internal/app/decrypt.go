@@ -3,14 +3,17 @@ package app
 import (
 	"path/filepath"
 
-	"github.com/mustafmst/universal-repo-vault/internal/archive"
 	urvcrypto "github.com/mustafmst/universal-repo-vault/internal/crypto"
-	"github.com/mustafmst/universal-repo-vault/internal/keystore"
 	"github.com/mustafmst/universal-repo-vault/internal/vault"
 )
 
 func DecryptRepo(repoPath string) error {
-	key, err := keystore.NewDefaultFileStore().KeyForRepo(repoPath)
+	return DecryptRepoWithServices(repoPath, DefaultServices())
+}
+
+func DecryptRepoWithServices(repoPath string, services Services) error {
+	services = services.withDefaults()
+	key, err := services.KeyStore.KeyForRepo(repoPath)
 	if err != nil {
 		return err
 	}
@@ -37,5 +40,5 @@ func DecryptRepo(repoPath string) error {
 		return err
 	}
 
-	return archive.NewZipArchiver().Unpack(repoPath, decryptedArch, true)
+	return services.Archiver.Unpack(repoPath, decryptedArch, true)
 }
