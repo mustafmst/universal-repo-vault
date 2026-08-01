@@ -261,7 +261,3 @@ make lint
 - Key files are stored only on the local machine.
 - `urv decrypt` writes files back into the working tree and can replace existing file contents.
 - Git hooks are part of the broader project idea but are not implemented yet.
-
-## Authorship Note
-
-All code in this project was written by hand. AI was used only to help generate and improve this documentation because writing clear documentation is not my strongest skill.
