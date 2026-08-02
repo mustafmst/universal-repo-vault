@@ -1,6 +1,10 @@
 package app
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/mustafmst/universal-repo-vault/internal/repo"
+)
 
 type CheckResult struct {
 	Report   *StatusReport
@@ -23,6 +27,22 @@ func CheckRepoWithServices(repoPath string, services Services) (*CheckResult, er
 	for _, file := range report.Files {
 		if file.Status != FileUnchanged {
 			result.Messages = append(result.Messages, fmt.Sprintf("%s %s", file.Path, file.Status))
+		}
+	}
+	paths := make([]string, 0, len(report.Files))
+	for _, file := range report.Files {
+		if file.Status != FileVaultOnly {
+			paths = append(paths, file.Path)
+		}
+	}
+	staged, err := repo.StagedFiles(repoPath, paths)
+	if err != nil {
+		return nil, err
+	}
+	for _, path := range paths {
+		if staged[path] {
+			result.Safe = false
+			result.Messages = append(result.Messages, fmt.Sprintf("configured plaintext file is staged: %s", path))
 		}
 	}
 	return result, nil

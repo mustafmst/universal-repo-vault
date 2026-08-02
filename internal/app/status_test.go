@@ -25,9 +25,7 @@ func writeStatusFile(t *testing.T, path string, data string, mode os.FileMode) {
 func statusRepo(t *testing.T) (string, *keystore.FileStore) {
 	t.Helper()
 	repoPath := t.TempDir()
-	if err := os.Mkdir(filepath.Join(repoPath, ".git"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	runAppGit(t, repoPath, "init")
 	return repoPath, keystore.NewFileStore(t.TempDir())
 }
 
@@ -409,5 +407,20 @@ func TestStatusRepoWarnsWhenPatternMatchesNothing(t *testing.T) {
 	}
 	if !hasStatusMessage(got.Warnings, "pattern matched no files") {
 		t.Fatalf("expected no-match warning, got %#v", got.Warnings)
+	}
+}
+
+func TestStatusRepoWarnsWhenConfiguredFileIsNotIgnored(t *testing.T) {
+	repoPath, store := statusRepo(t)
+	writeStatusFile(t, filepath.Join(repoPath, ".urv.yaml"), "secretfiles:\n  - secret.env\n", 0o644)
+	writeStatusFile(t, filepath.Join(repoPath, "secret.env"), "secret\n", 0o600)
+
+	got, err := StatusRepoWithServices(repoPath, Services{KeyStore: store})
+
+	if err != nil {
+		t.Fatalf("expected status to inspect repo, got %v", err)
+	}
+	if !hasStatusMessage(got.Warnings, "configured plaintext file is not ignored by Git") {
+		t.Fatalf("expected not-ignored warning, got %#v", got.Warnings)
 	}
 }

@@ -29,9 +29,7 @@ func setupRepoAndHome(t *testing.T) (repoPath string, homePath string) {
 	repoPath = t.TempDir()
 	homePath = t.TempDir()
 	t.Setenv("HOME", homePath)
-	if err := os.Mkdir(filepath.Join(repoPath, ".git"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	runAppGit(t, repoPath, "init")
 	writeFile(t, filepath.Join(repoPath, ".urv.yaml"), "secretfiles:\n  - .env\npatterns:\n  - \"*.secret.*\"\n", 0o644)
 	writeFile(t, filepath.Join(repoPath, ".env"), "API_KEY=one\n", 0o600)
 	writeFile(t, filepath.Join(repoPath, "nested", "app.secret.yaml"), "password: one\n", 0o600)

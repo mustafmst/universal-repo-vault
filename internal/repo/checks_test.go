@@ -3,10 +3,21 @@ package repo
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v failed: %v\n%s", args, err, output)
+	}
+}
 
 func TestCheckDirGitRepo(t *testing.T) {
 	tests := []struct {
@@ -270,5 +281,51 @@ func TestGetCurrentRepoPath(t *testing.T) {
 				t.Fatalf("expected %q, got %q", wantPath, got)
 			}
 		})
+	}
+}
+
+func TestIgnoredFilesReportsGitIgnoredConfiguredFiles(t *testing.T) {
+	repoPath := t.TempDir()
+	runGit(t, repoPath, "init")
+	if err := os.WriteFile(filepath.Join(repoPath, ".gitignore"), []byte(".env\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repoPath, ".env"), []byte("secret\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := IgnoredFiles(repoPath, []string{".env", "plain.txt"})
+
+	if err != nil {
+		t.Fatalf("expected ignored check to succeed, got %v", err)
+	}
+	if !got[".env"] {
+		t.Fatalf("expected .env ignored, got %#v", got)
+	}
+	if got["plain.txt"] {
+		t.Fatalf("expected plain.txt not ignored, got %#v", got)
+	}
+}
+
+func TestStagedFilesReportsConfiguredFilesInIndex(t *testing.T) {
+	repoPath := t.TempDir()
+	runGit(t, repoPath, "init")
+	runGit(t, repoPath, "config", "user.email", "test@example.invalid")
+	runGit(t, repoPath, "config", "user.name", "Test User")
+	if err := os.WriteFile(filepath.Join(repoPath, ".env"), []byte("secret\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repoPath, "add", ".env")
+
+	got, err := StagedFiles(repoPath, []string{".env", "plain.txt"})
+
+	if err != nil {
+		t.Fatalf("expected staged check to succeed, got %v", err)
+	}
+	if !got[".env"] {
+		t.Fatalf("expected .env staged, got %#v", got)
+	}
+	if got["plain.txt"] {
+		t.Fatalf("expected plain.txt unstaged, got %#v", got)
 	}
 }

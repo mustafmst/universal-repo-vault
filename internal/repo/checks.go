@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -84,4 +85,47 @@ func CheckGitignore(repoPath string) error {
 	contents += tempDir + "\n"
 
 	return os.WriteFile(fullPath, []byte(contents), 0o664)
+}
+
+func IgnoredFiles(repoPath string, relPaths []string) (map[string]bool, error) {
+	result := map[string]bool{}
+	for _, path := range relPaths {
+		result[path] = false
+		cmd := exec.Command("git", "check-ignore", "--quiet", "--", path)
+		cmd.Dir = repoPath
+		err := cmd.Run()
+		if err == nil {
+			result[path] = true
+			continue
+		}
+		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+			continue
+		}
+		return nil, fmt.Errorf("checking ignored file %s: %w", path, err)
+	}
+	return result, nil
+}
+
+func StagedFiles(repoPath string, relPaths []string) (map[string]bool, error) {
+	result := map[string]bool{}
+	for _, path := range relPaths {
+		result[path] = false
+	}
+
+	cmd := exec.Command("git", "diff", "--cached", "--name-only", "--")
+	cmd.Dir = repoPath
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("listing staged files: %w", err)
+	}
+	for _, line := range strings.Split(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if _, ok := result[line]; ok {
+			result[line] = true
+		}
+	}
+	return result, nil
 }

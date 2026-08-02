@@ -10,6 +10,7 @@ import (
 
 	"github.com/mustafmst/universal-repo-vault/internal/config"
 	"github.com/mustafmst/universal-repo-vault/internal/files"
+	"github.com/mustafmst/universal-repo-vault/internal/repo"
 	"github.com/mustafmst/universal-repo-vault/internal/vault"
 )
 
@@ -128,6 +129,16 @@ func StatusRepoWithServices(repoPath string, services Services) (*StatusReport, 
 
 	foundFiles, validationErrors = validateStatusDiscoveredFiles(foundFiles)
 	report.Errors = append(report.Errors, validationErrors...)
+
+	ignored, err := repo.IgnoredFiles(repoPath, foundFiles)
+	if err != nil {
+		return nil, err
+	}
+	for _, path := range foundFiles {
+		if !ignored[path] {
+			report.Warnings = append(report.Warnings, fmt.Sprintf("configured plaintext file is not ignored by Git: %s", path))
+		}
+	}
 
 	hashes := map[string]string{}
 	if len(foundFiles) > 0 {
