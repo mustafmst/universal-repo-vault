@@ -94,3 +94,58 @@ func TestZipArchiverHonorsOverwriteFlag(t *testing.T) {
 		t.Fatalf("expected overwritten data, got %q", string(got))
 	}
 }
+
+func TestZipArchiverPlanUnpackReportsCreateAndOverwrite(t *testing.T) {
+	src := t.TempDir()
+	dst := t.TempDir()
+	writeArchiveFile(t, filepath.Join(src, ".env"), "new\n")
+	writeArchiveFile(t, filepath.Join(src, "nested", "app.secret.yaml"), "secret\n")
+	writeArchiveFile(t, filepath.Join(dst, ".env"), "old\n")
+
+	data, err := NewZipArchiver().Pack(src, []string{".env", "nested/app.secret.yaml"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := NewZipArchiver().PlanUnpack(dst, data)
+
+	if err != nil {
+		t.Fatalf("expected plan to succeed, got %v", err)
+	}
+	want := []EntryPlan{
+		{Path: ".env", Action: EntryOverwrite, Mode: 0o644},
+		{Path: "nested/app.secret.yaml", Action: EntryCreate, Mode: 0o644},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("expected %#v, got %#v", want, got)
+	}
+	for i := range want {
+		if got[i].Path != want[i].Path || got[i].Action != want[i].Action {
+			t.Fatalf("expected %#v, got %#v", want, got)
+		}
+	}
+}
+
+func TestZipArchiverPlanUnpackRejectsUnsafePath(t *testing.T) {
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	w, err := zw.Create("../outside.env")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("secret")); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = NewZipArchiver().PlanUnpack(t.TempDir(), buf.Bytes())
+
+	if err == nil {
+		t.Fatal("expected unsafe path error, got nil")
+	}
+	if !strings.Contains(err.Error(), "unsafe zip path") {
+		t.Fatalf("expected unsafe path error, got %v", err)
+	}
+}

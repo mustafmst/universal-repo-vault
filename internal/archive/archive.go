@@ -12,7 +12,21 @@ import (
 
 type Archiver interface {
 	Pack(basePath string, relPaths []string) ([]byte, error)
+	PlanUnpack(basePath string, data []byte) ([]EntryPlan, error)
 	Unpack(basePath string, data []byte, overwrite bool) error
+}
+
+type EntryAction string
+
+const (
+	EntryCreate    EntryAction = "create"
+	EntryOverwrite EntryAction = "overwrite"
+)
+
+type EntryPlan struct {
+	Path   string
+	Action EntryAction
+	Mode   os.FileMode
 }
 
 type ZipArchiver struct{}
@@ -60,6 +74,32 @@ func writeFileToZip(zw *zip.Writer, basePath string, relPath string) error {
 		return err
 	}
 	return nil
+}
+
+func (za *ZipArchiver) PlanUnpack(basePath string, data []byte) ([]EntryPlan, error) {
+	dataReader := bytes.NewReader(data)
+	zr, err := zip.NewReader(dataReader, int64(len(data)))
+	if err != nil {
+		return nil, fmt.Errorf("creating zip reader from bytes data: %w", err)
+	}
+
+	plans := make([]EntryPlan, 0, len(zr.File))
+	for _, zf := range zr.File {
+		cleanName := filepath.ToSlash(filepath.Clean(zf.Name))
+		if !filepath.IsLocal(cleanName) {
+			return nil, fmt.Errorf("unsafe zip path: %s", zf.Name)
+		}
+
+		action := EntryCreate
+		if info, err := os.Stat(filepath.Join(basePath, filepath.FromSlash(cleanName))); err == nil && !info.IsDir() {
+			action = EntryOverwrite
+		} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("inspecting unpack target %s: %w", cleanName, err)
+		}
+
+		plans = append(plans, EntryPlan{Path: cleanName, Action: action, Mode: zf.Mode()})
+	}
+	return plans, nil
 }
 
 func (za *ZipArchiver) Unpack(basePath string, data []byte, overwrite bool) error {

@@ -1,8 +1,10 @@
 package app
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mustafmst/universal-repo-vault/internal/archive"
@@ -136,5 +138,65 @@ func TestEncryptDecryptRepoWithServicesRoundTrip(t *testing.T) {
 	}
 	if string(got) != "API_KEY=two\n" {
 		t.Fatalf("unexpected env contents: %q", string(got))
+	}
+}
+
+func TestDecryptRepoWithOptionsDryRunDoesNotWriteFiles(t *testing.T) {
+	repoPath, homePath := setupRepoAndHome(t)
+	services := Services{KeyStore: keystore.NewFileStore(homePath)}
+	if _, err := EncryptRepoWithServices(repoPath, services); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(repoPath, ".env")); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := DecryptRepoWithServicesAndOptions(repoPath, services, DecryptOptions{DryRun: true, Overwrite: true})
+
+	if err != nil {
+		t.Fatalf("expected dry run to succeed, got %v", err)
+	}
+	if !result.DryRun {
+		t.Fatal("expected dry run result")
+	}
+	if _, err := os.Stat(filepath.Join(repoPath, ".env")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected dry run not to restore file, got %v", err)
+	}
+}
+
+func TestDecryptRepoWithOptionsNoOverwriteFailsOnExistingFile(t *testing.T) {
+	repoPath, homePath := setupRepoAndHome(t)
+	services := Services{KeyStore: keystore.NewFileStore(homePath)}
+	if _, err := EncryptRepoWithServices(repoPath, services); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := DecryptRepoWithServicesAndOptions(repoPath, services, DecryptOptions{Overwrite: false})
+
+	if err == nil {
+		t.Fatal("expected no-overwrite decrypt to fail")
+	}
+	if !strings.Contains(err.Error(), "file was not replaced") && !strings.Contains(err.Error(), "file exists") {
+		t.Fatalf("expected existing file error, got %v", err)
+	}
+}
+
+func TestDecryptRepoDefaultStillOverwrites(t *testing.T) {
+	repoPath, homePath := setupRepoAndHome(t)
+	services := Services{KeyStore: keystore.NewFileStore(homePath)}
+	if _, err := EncryptRepoWithServices(repoPath, services); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(repoPath, ".env"), "LOCAL=changed\n", 0o600)
+
+	if _, err := DecryptRepoWithServicesAndOptions(repoPath, services, DecryptOptions{Overwrite: true}); err != nil {
+		t.Fatalf("expected overwrite decrypt to succeed, got %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(repoPath, ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "API_KEY=one\n" {
+		t.Fatalf("expected vault contents, got %q", string(got))
 	}
 }
