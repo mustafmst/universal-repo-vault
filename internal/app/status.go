@@ -64,6 +64,9 @@ func StatusRepoWithServices(repoPath string, services Services) (*StatusReport, 
 		return report, nil
 	}
 	report.ConfigOK = true
+	warnings, validationErrors := validateStatusConfig(cfg)
+	report.Warnings = append(report.Warnings, warnings...)
+	report.Errors = append(report.Errors, validationErrors...)
 
 	keyHealth := services.KeyStore.HealthForRepo(repoPath)
 	report.KeyMapped = keyHealth.Mapped
@@ -98,6 +101,18 @@ func StatusRepoWithServices(repoPath string, services Services) (*StatusReport, 
 		report.finish()
 		return report, nil
 	}
+	for _, pattern := range cfg.Patterns {
+		matched := false
+		for _, path := range foundFiles {
+			if ok, _ := filepath.Match(pattern, filepath.Base(path)); ok {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			report.Warnings = append(report.Warnings, fmt.Sprintf("pattern matched no files: %s", pattern))
+		}
+	}
 
 	hashes := map[string]string{}
 	if len(foundFiles) > 0 {
@@ -112,6 +127,37 @@ func StatusRepoWithServices(repoPath string, services Services) (*StatusReport, 
 	report.Files = classifyStatusFiles(repoPath, cfg.SecretFiles, foundFiles, hashes, vaultHashes(v))
 	report.finish()
 	return report, nil
+}
+
+func validateStatusConfig(cfg *config.Config) (warnings []string, errors []string) {
+	for _, pattern := range cfg.Patterns {
+		if _, err := filepath.Match(pattern, ""); err != nil {
+			errors = append(errors, fmt.Sprintf("invalid file pattern %q: %v", pattern, err))
+		}
+	}
+
+	if cfg.ArchiverName() != "zip" {
+		errors = append(errors, fmt.Sprintf("unsupported archiver %q", cfg.ArchiverName()))
+	}
+	if cfg.CipherName() != "aes-gcm" {
+		errors = append(errors, fmt.Sprintf("unsupported cypher %q", cfg.CipherName()))
+	}
+
+	for _, path := range cfg.SecretFiles {
+		cleanPath := filepath.ToSlash(filepath.Clean(path))
+		if !filepath.IsLocal(cleanPath) {
+			errors = append(errors, fmt.Sprintf("unsafe explicit file path %q", path))
+		}
+		switch cleanPath {
+		case ".urv.yaml", ".urv.vault.yaml", ".git":
+			errors = append(errors, fmt.Sprintf("reserved path configured as secret file %q", path))
+		}
+		if cleanPath == files.LockFileName {
+			errors = append(errors, fmt.Sprintf("reserved path configured as secret file %q", path))
+		}
+	}
+
+	return warnings, errors
 }
 
 func vaultHashes(v *vault.Vault) map[string]string {

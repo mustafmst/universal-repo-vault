@@ -199,3 +199,65 @@ func TestStatusRepoReportsVaultOnlyFile(t *testing.T) {
 		t.Fatalf("expected vault-only file, got %#v found=%v", vaultOnly, ok)
 	}
 }
+
+func TestStatusRepoReportsInvalidPattern(t *testing.T) {
+	repoPath, store := statusRepo(t)
+	writeStatusFile(t, filepath.Join(repoPath, ".urv.yaml"), "patterns:\n  - \"[\"\n", 0o644)
+
+	got, err := StatusRepoWithServices(repoPath, Services{KeyStore: store})
+
+	if err != nil {
+		t.Fatalf("expected inspection to succeed, got %v", err)
+	}
+	if got.Overall != OverallBrokenSetup {
+		t.Fatalf("expected broken setup, got %q", got.Overall)
+	}
+	if !hasStatusMessage(got.Errors, "invalid file pattern") {
+		t.Fatalf("expected invalid pattern error, got %#v", got.Errors)
+	}
+}
+
+func TestStatusRepoReportsUnsupportedArchiverAndCypher(t *testing.T) {
+	repoPath, store := statusRepo(t)
+	writeStatusFile(t, filepath.Join(repoPath, ".urv.yaml"), "secretfiles:\n  - .env\narchiver: tar\ncypher: age\n", 0o644)
+
+	got, err := StatusRepoWithServices(repoPath, Services{KeyStore: store})
+
+	if err != nil {
+		t.Fatalf("expected inspection to succeed, got %v", err)
+	}
+	if !hasStatusMessage(got.Errors, "unsupported archiver") {
+		t.Fatalf("expected unsupported archiver error, got %#v", got.Errors)
+	}
+	if !hasStatusMessage(got.Errors, "unsupported cypher") {
+		t.Fatalf("expected unsupported cypher error, got %#v", got.Errors)
+	}
+}
+
+func TestStatusRepoReportsUnsafeExplicitPaths(t *testing.T) {
+	repoPath, store := statusRepo(t)
+	writeStatusFile(t, filepath.Join(repoPath, ".urv.yaml"), "secretfiles:\n  - ../outside.env\n  - /tmp/absolute.env\n", 0o644)
+
+	got, err := StatusRepoWithServices(repoPath, Services{KeyStore: store})
+
+	if err != nil {
+		t.Fatalf("expected inspection to succeed, got %v", err)
+	}
+	if !hasStatusMessage(got.Errors, "unsafe explicit file path") {
+		t.Fatalf("expected unsafe path error, got %#v", got.Errors)
+	}
+}
+
+func TestStatusRepoWarnsWhenPatternMatchesNothing(t *testing.T) {
+	repoPath, store := statusRepo(t)
+	writeStatusFile(t, filepath.Join(repoPath, ".urv.yaml"), "patterns:\n  - \"*.secret.*\"\n", 0o644)
+
+	got, err := StatusRepoWithServices(repoPath, Services{KeyStore: store})
+
+	if err != nil {
+		t.Fatalf("expected inspection to succeed, got %v", err)
+	}
+	if !hasStatusMessage(got.Warnings, "pattern matched no files") {
+		t.Fatalf("expected no-match warning, got %#v", got.Warnings)
+	}
+}
