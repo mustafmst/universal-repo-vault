@@ -5,7 +5,7 @@ import "testing"
 func TestRootCommandIncludesExpectedSubcommands(t *testing.T) {
 	root := NewRootCommand()
 
-	want := []string{"init", "encrypt", "decrypt", "keys", "status"}
+	want := []string{"init", "encrypt", "decrypt", "keys", "status", "check"}
 	for _, name := range want {
 		cmd, _, err := root.Find([]string{name})
 		if err != nil {

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/mustafmst/universal-repo-vault/cmd/check"
 	"github.com/mustafmst/universal-repo-vault/cmd/decrypt"
 	"github.com/mustafmst/universal-repo-vault/cmd/encrypt"
 	"github.com/mustafmst/universal-repo-vault/cmd/initcmd"
@@ -25,6 +26,7 @@ func NewRootCommand() *cobra.Command {
 	cmd.AddCommand(encrypt.NewCommand())
 	cmd.AddCommand(keys.NewCommand())
 	cmd.AddCommand(status.NewCommand())
+	cmd.AddCommand(check.NewCommand())
 
 	return cmd
 }
