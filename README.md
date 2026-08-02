@@ -178,6 +178,24 @@ Decrypt the vault into the working tree:
 urv decrypt
 ```
 
+Check whether the repository is safe for commit or automation:
+
+```sh
+urv check
+```
+
+Preview decrypt writes without changing files:
+
+```sh
+urv decrypt --dry-run
+```
+
+Decrypt without replacing existing files:
+
+```sh
+urv decrypt --no-overwrite
+```
+
 Manage keys:
 
 ```sh
@@ -185,6 +203,21 @@ urv keys gen
 urv keys add
 urv keys list
 ```
+
+## Public Hosting Notes
+
+URV is designed to commit `.urv.yaml` and `.urv.vault.yaml`, but those files are not fully private metadata. `.urv.vault.yaml` exposes protected repository-relative file paths and SHA-256 hashes of plaintext file contents. Do not use sensitive hostnames, service names, or environment names in secret file paths if that metadata should stay private.
+
+Before pushing to a public repository:
+
+```sh
+urv status
+urv check
+```
+
+`urv check` exits non-zero when the repository is not safe to commit. It is intended for local scripts, CI, and pre-commit hooks.
+
+The files under `example-files/` contain dummy values only. Do not copy real secrets into tracked example files.
 
 ## Key Management
 
@@ -231,6 +264,8 @@ urv keys list
 ```
 
 Keys are local machine state. They are not written to `.urv.vault.yaml` and should not be committed to Git.
+
+For small teams, transfer key files only through a private channel that is already trusted for secrets. Do not paste URV keys into public issues, pull requests, chat rooms, shell history, or commit messages. After importing or mapping a key, run `urv status` to verify that the repository can see a valid mapped key.
 
 ## Generated Files
 
