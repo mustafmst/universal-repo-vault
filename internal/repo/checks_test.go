@@ -329,3 +329,22 @@ func TestStagedFilesReportsConfiguredFilesInIndex(t *testing.T) {
 		t.Fatalf("expected plain.txt unstaged, got %#v", got)
 	}
 }
+
+func TestStagedFilesPreservesWhitespaceInConfiguredPath(t *testing.T) {
+	repoPath := t.TempDir()
+	runGit(t, repoPath, "init")
+	fileName := " secret.env "
+	if err := os.WriteFile(filepath.Join(repoPath, fileName), []byte("secret\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repoPath, "add", fileName)
+
+	got, err := StagedFiles(repoPath, []string{fileName})
+
+	if err != nil {
+		t.Fatalf("expected staged check to succeed, got %v", err)
+	}
+	if !got[fileName] {
+		t.Fatalf("expected whitespace path staged, got %#v", got)
+	}
+}

@@ -112,19 +112,18 @@ func StagedFiles(repoPath string, relPaths []string) (map[string]bool, error) {
 		result[path] = false
 	}
 
-	cmd := exec.Command("git", "diff", "--cached", "--name-only", "--")
+	cmd := exec.Command("git", "diff", "--cached", "--name-only", "-z", "--")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("listing staged files: %w", err)
 	}
-	for _, line := range strings.Split(string(output), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
+	for _, path := range strings.Split(string(output), "\x00") {
+		if path == "" {
 			continue
 		}
-		if _, ok := result[line]; ok {
-			result[line] = true
+		if _, ok := result[path]; ok {
+			result[path] = true
 		}
 	}
 	return result, nil
