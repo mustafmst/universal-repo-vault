@@ -181,14 +181,18 @@ func TestStatusRepoReportsVaultOnlyFile(t *testing.T) {
 	if _, err := EncryptRepoWithServices(repoPath, services); err != nil {
 		t.Fatalf("expected encrypt to succeed, got %v", err)
 	}
-	if err := os.Remove(filepath.Join(repoPath, "nested", "app.secret.yaml")); err != nil {
-		t.Fatal(err)
-	}
+	writeStatusFile(t, filepath.Join(repoPath, ".urv.yaml"), "secretfiles:\n  - .env\n", 0o644)
 
 	got, err := StatusRepoWithServices(repoPath, services)
 
 	if err != nil {
 		t.Fatalf("expected inspection to succeed, got %v", err)
+	}
+	if got.Overall != OverallNeedsEncryption {
+		t.Fatalf("expected needs encryption, got %q", got.Overall)
+	}
+	if len(got.Files) != 2 || got.Files[0].Path != ".env" || got.Files[1].Path != "nested/app.secret.yaml" {
+		t.Fatalf("expected files sorted by path, got %#v", got.Files)
 	}
 	vaultOnly, ok := findStatusFile(got.Files, "nested/app.secret.yaml")
 	if !ok || vaultOnly.Status != FileVaultOnly {
