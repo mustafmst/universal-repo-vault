@@ -7,7 +7,10 @@ import (
 	"testing"
 
 	"github.com/mustafmst/universal-repo-vault/internal/keystore"
+	"github.com/mustafmst/universal-repo-vault/internal/vault"
 )
+
+const statusTestKey = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
 
 func writeStatusFile(t *testing.T, path string, data string, mode os.FileMode) {
 	t.Helper()
@@ -65,6 +68,32 @@ func TestStatusRepoReportsMissingConfig(t *testing.T) {
 	}
 }
 
+func TestStatusRepoInspectsVaultAndKeyWhenConfigIsInvalid(t *testing.T) {
+	repoPath, store := statusRepo(t)
+	if err := store.SaveKey(statusTestKey, repoPath, "repo-key"); err != nil {
+		t.Fatal(err)
+	}
+	if err := vault.NewVaultFromData([]byte("vault data"), nil).SaveToFile(filepath.Join(repoPath, vault.VaultFileName)); err != nil {
+		t.Fatal(err)
+	}
+	writeStatusFile(t, filepath.Join(repoPath, ".urv.yaml"), "secretfiles: [\n", 0o644)
+
+	got, err := StatusRepoWithServices(repoPath, Services{KeyStore: store})
+
+	if err != nil {
+		t.Fatalf("expected inspection to succeed, got %v", err)
+	}
+	if got.ConfigOK {
+		t.Fatal("expected invalid config")
+	}
+	if !got.VaultExists || !got.VaultOK {
+		t.Fatalf("expected valid vault, got exists=%v ok=%v", got.VaultExists, got.VaultOK)
+	}
+	if !got.KeyMapped || !got.KeyFileExists || !got.KeyLengthValid {
+		t.Fatalf("expected valid mapped key, got %#v", got)
+	}
+}
+
 func TestStatusRepoReportsMissingVaultAndKey(t *testing.T) {
 	repoPath, store := statusRepo(t)
 	writeStatusFile(t, filepath.Join(repoPath, ".urv.yaml"), "secretfiles:\n  - .env\n", 0o644)
@@ -92,6 +121,27 @@ func TestStatusRepoReportsMissingVaultAndKey(t *testing.T) {
 	}
 	if !hasStatusMessage(got.Errors, "key for repo not found") {
 		t.Fatalf("expected missing key error, got %#v", got.Errors)
+	}
+}
+
+func TestStatusRepoReportsMalformedExistingVault(t *testing.T) {
+	repoPath, store := statusRepo(t)
+	writeStatusFile(t, filepath.Join(repoPath, ".urv.yaml"), "secretfiles:\n  - .env\n", 0o644)
+	writeStatusFile(t, filepath.Join(repoPath, vault.VaultFileName), "[", 0o644)
+
+	got, err := StatusRepoWithServices(repoPath, Services{KeyStore: store})
+
+	if err != nil {
+		t.Fatalf("expected inspection to succeed, got %v", err)
+	}
+	if !got.VaultExists {
+		t.Fatal("expected malformed vault to be reported as existing")
+	}
+	if got.VaultOK {
+		t.Fatal("expected malformed vault to be invalid")
+	}
+	if !hasStatusMessage(got.Errors, "vault .urv.vault.yaml is invalid") {
+		t.Fatalf("expected malformed vault error, got %#v", got.Errors)
 	}
 }
 
@@ -245,6 +295,77 @@ func TestStatusRepoReportsUnsafeExplicitPaths(t *testing.T) {
 	}
 	if !hasStatusMessage(got.Errors, "unsafe explicit file path") {
 		t.Fatalf("expected unsafe path error, got %#v", got.Errors)
+	}
+}
+
+func TestStatusRepoReportsReservedExplicitDescendant(t *testing.T) {
+	repoPath, store := statusRepo(t)
+	writeStatusFile(t, filepath.Join(repoPath, ".git", "config"), "[core]\n", 0o644)
+	writeStatusFile(t, filepath.Join(repoPath, ".urv.yaml"), "secretfiles:\n  - .git/config\n", 0o644)
+
+	got, err := StatusRepoWithServices(repoPath, Services{KeyStore: store})
+
+	if err != nil {
+		t.Fatalf("expected inspection to succeed, got %v", err)
+	}
+	if !hasStatusMessage(got.Errors, ".git/config") {
+		t.Fatalf("expected reserved descendant error, got %#v", got.Errors)
+	}
+}
+
+func TestStatusRepoReportsExplicitDirectory(t *testing.T) {
+	repoPath, store := statusRepo(t)
+	writeStatusFile(t, filepath.Join(repoPath, "secrets", "app.env"), "API_KEY=one\n", 0o600)
+	writeStatusFile(t, filepath.Join(repoPath, ".urv.yaml"), "secretfiles:\n  - secrets\n", 0o644)
+
+	got, err := StatusRepoWithServices(repoPath, Services{KeyStore: store})
+
+	if err != nil {
+		t.Fatalf("expected inspection to succeed, got %v", err)
+	}
+	if !hasStatusMessage(got.Errors, "configured secret file is a directory") {
+		t.Fatalf("expected explicit directory error, got %#v", got.Errors)
+	}
+}
+
+func TestStatusRepoReportsMetadataMatchedByPattern(t *testing.T) {
+	repoPath, store := statusRepo(t)
+	writeStatusFile(t, filepath.Join(repoPath, ".urv.yaml"), "patterns:\n  - \"*\"\n", 0o644)
+	if err := vault.NewVaultFromData([]byte("vault data"), nil).SaveToFile(filepath.Join(repoPath, vault.VaultFileName)); err != nil {
+		t.Fatal(err)
+	}
+	writeStatusFile(t, filepath.Join(repoPath, ".urv.lock"), ".env: hash\n", 0o644)
+
+	got, err := StatusRepoWithServices(repoPath, Services{KeyStore: store})
+
+	if err != nil {
+		t.Fatalf("expected inspection to succeed, got %v", err)
+	}
+	for _, path := range []string{".urv.yaml", ".urv.vault.yaml", ".urv.lock"} {
+		if !hasStatusMessage(got.Errors, path) {
+			t.Fatalf("expected metadata pattern error for %q, got %#v", path, got.Errors)
+		}
+	}
+}
+
+func TestStatusRepoReturnsErrorWhenHashingConfiguredFileFails(t *testing.T) {
+	repoPath, store := statusRepo(t)
+	secretPath := filepath.Join(repoPath, ".env")
+	writeStatusFile(t, filepath.Join(repoPath, ".urv.yaml"), "secretfiles:\n  - .env\n", 0o644)
+	writeStatusFile(t, secretPath, "API_KEY=one\n", 0o600)
+	if err := os.Chmod(secretPath, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chmod(secretPath, 0o600); err != nil && !os.IsNotExist(err) {
+			t.Errorf("restoring secret permissions: %v", err)
+		}
+	})
+
+	_, err := StatusRepoWithServices(repoPath, Services{KeyStore: store})
+
+	if err == nil {
+		t.Fatal("expected hashing failure to make inspection fail")
 	}
 }
 

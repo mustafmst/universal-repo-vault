@@ -182,3 +182,31 @@ func TestFileStoreHealthForRepoInvalidKeyLength(t *testing.T) {
 		t.Fatalf("expected invalid length error, got %v", got.Err)
 	}
 }
+
+func TestFileStoreHealthForRepoRejectsNonHexKey(t *testing.T) {
+	home := t.TempDir()
+	repoPath := filepath.Join(t.TempDir(), "repo")
+	configPath := filepath.Join(home, ".config", "urv")
+	if err := os.MkdirAll(filepath.Join(configPath, "keys"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configPath, "mapping.yaml"), []byte(repoPath+": repo-key\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	nonHexKey := strings.Repeat("z", 64)
+	if err := os.WriteFile(filepath.Join(configPath, "keys", "repo-key"), []byte(nonHexKey), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got := NewFileStore(home).HealthForRepo(repoPath)
+
+	if !got.Mapped || !got.KeyFileExists {
+		t.Fatalf("expected mapped existing key, got %#v", got)
+	}
+	if got.KeyLengthValid {
+		t.Fatal("expected non-hex key to be invalid")
+	}
+	if got.Err == nil || !strings.Contains(got.Err.Error(), "invalid key encoding") {
+		t.Fatalf("expected invalid encoding error, got %v", got.Err)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/mustafmst/universal-repo-vault/internal/config"
 	"github.com/mustafmst/universal-repo-vault/internal/files"
@@ -60,13 +61,9 @@ func StatusRepoWithServices(repoPath string, services Services) (*StatusReport, 
 	cfg, err := config.Load(repoPath)
 	if err != nil {
 		report.Errors = append(report.Errors, fmt.Sprintf("config .urv.yaml is missing or invalid: %v", err))
-		report.finish()
-		return report, nil
+	} else {
+		report.ConfigOK = true
 	}
-	report.ConfigOK = true
-	warnings, validationErrors := validateStatusConfig(cfg)
-	report.Warnings = append(report.Warnings, warnings...)
-	report.Errors = append(report.Errors, validationErrors...)
 
 	keyHealth := services.KeyStore.HealthForRepo(repoPath)
 	report.KeyMapped = keyHealth.Mapped
@@ -82,6 +79,7 @@ func StatusRepoWithServices(repoPath string, services Services) (*StatusReport, 
 		if errors.Is(err, os.ErrNotExist) {
 			report.Errors = append(report.Errors, "vault .urv.vault.yaml is missing")
 		} else {
+			report.VaultExists = true
 			report.Errors = append(report.Errors, fmt.Sprintf("vault .urv.vault.yaml is invalid: %v", err))
 		}
 	} else {
@@ -95,11 +93,22 @@ func StatusRepoWithServices(repoPath string, services Services) (*StatusReport, 
 		}
 	}
 
-	foundFiles, err := files.ListAllConfiguredFiles(repoPath, cfg.SecretFiles, cfg.Patterns)
-	if err != nil {
-		report.Errors = append(report.Errors, err.Error())
+	if !report.ConfigOK {
 		report.finish()
 		return report, nil
+	}
+
+	warnings, validationErrors := validateStatusConfig(repoPath, cfg)
+	report.Warnings = append(report.Warnings, warnings...)
+	report.Errors = append(report.Errors, validationErrors...)
+	if len(validationErrors) > 0 {
+		report.finish()
+		return report, nil
+	}
+
+	foundFiles, err := files.ListAllConfiguredFiles(repoPath, cfg.SecretFiles, cfg.Patterns)
+	if err != nil {
+		return nil, fmt.Errorf("listing configured files for status: %w", err)
 	}
 	for _, pattern := range cfg.Patterns {
 		matched := false
@@ -114,11 +123,14 @@ func StatusRepoWithServices(repoPath string, services Services) (*StatusReport, 
 		}
 	}
 
+	foundFiles, validationErrors = validateStatusDiscoveredFiles(foundFiles)
+	report.Errors = append(report.Errors, validationErrors...)
+
 	hashes := map[string]string{}
 	if len(foundFiles) > 0 {
 		hashCollection, err := files.NewFileHashCollection(repoPath, foundFiles)
 		if err != nil {
-			report.Errors = append(report.Errors, err.Error())
+			return nil, fmt.Errorf("hashing configured files for status: %w", err)
 		} else {
 			hashes = hashCollection.Hashes
 		}
@@ -129,35 +141,59 @@ func StatusRepoWithServices(repoPath string, services Services) (*StatusReport, 
 	return report, nil
 }
 
-func validateStatusConfig(cfg *config.Config) (warnings []string, errors []string) {
+func validateStatusConfig(repoPath string, cfg *config.Config) (warnings []string, validationErrors []string) {
 	for _, pattern := range cfg.Patterns {
 		if _, err := filepath.Match(pattern, ""); err != nil {
-			errors = append(errors, fmt.Sprintf("invalid file pattern %q: %v", pattern, err))
+			validationErrors = append(validationErrors, fmt.Sprintf("invalid file pattern %q: %v", pattern, err))
 		}
 	}
 
 	if cfg.ArchiverName() != "zip" {
-		errors = append(errors, fmt.Sprintf("unsupported archiver %q", cfg.ArchiverName()))
+		validationErrors = append(validationErrors, fmt.Sprintf("unsupported archiver %q", cfg.ArchiverName()))
 	}
 	if cfg.CipherName() != "aes-gcm" {
-		errors = append(errors, fmt.Sprintf("unsupported cypher %q", cfg.CipherName()))
+		validationErrors = append(validationErrors, fmt.Sprintf("unsupported cypher %q", cfg.CipherName()))
 	}
 
 	for _, path := range cfg.SecretFiles {
 		cleanPath := filepath.ToSlash(filepath.Clean(path))
 		if !filepath.IsLocal(cleanPath) {
-			errors = append(errors, fmt.Sprintf("unsafe explicit file path %q", path))
+			validationErrors = append(validationErrors, fmt.Sprintf("unsafe explicit file path %q", path))
+			continue
 		}
-		switch cleanPath {
-		case ".urv.yaml", ".urv.vault.yaml", ".git":
-			errors = append(errors, fmt.Sprintf("reserved path configured as secret file %q", path))
+		if isReservedStatusPath(cleanPath) {
+			validationErrors = append(validationErrors, fmt.Sprintf("reserved path configured as secret file %q", path))
 		}
-		if cleanPath == files.LockFileName {
-			errors = append(errors, fmt.Sprintf("reserved path configured as secret file %q", path))
+
+		info, err := os.Stat(filepath.Join(repoPath, filepath.FromSlash(cleanPath)))
+		if err == nil && info.IsDir() {
+			validationErrors = append(validationErrors, fmt.Sprintf("configured secret file is a directory %q", path))
+		} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+			validationErrors = append(validationErrors, fmt.Sprintf("inspecting configured secret file %q: %v", path, err))
 		}
 	}
 
-	return warnings, errors
+	return warnings, validationErrors
+}
+
+func validateStatusDiscoveredFiles(foundFiles []string) (safeFiles []string, errors []string) {
+	for _, path := range foundFiles {
+		if isReservedStatusPath(path) {
+			errors = append(errors, fmt.Sprintf("reserved file selected by configuration %q", path))
+			continue
+		}
+		safeFiles = append(safeFiles, path)
+	}
+	return safeFiles, errors
+}
+
+func isReservedStatusPath(path string) bool {
+	for _, reservedPath := range []string{".git", ".urv.yaml", vault.VaultFileName, files.LockFileName} {
+		if path == reservedPath || strings.HasPrefix(path, reservedPath+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 func vaultHashes(v *vault.Vault) map[string]string {

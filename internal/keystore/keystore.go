@@ -243,6 +243,11 @@ func (fs *FileStore) HealthForRepo(repoPath string) KeyHealth {
 		health.Err = fmt.Errorf("reading key from: %s, expected key len: %d, read: %d", keyFile, 2*KeyLength, len(key))
 		return health
 	}
+	keyBytes, err := hex.DecodeString(key)
+	if err != nil || len(keyBytes) != KeyLength {
+		health.Err = fmt.Errorf("reading key from: %s, invalid key encoding", keyFile)
+		return health
+	}
 
 	health.KeyLengthValid = true
 	return health
