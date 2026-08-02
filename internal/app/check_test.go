@@ -76,3 +76,25 @@ func TestCheckRepoUnsafeWhenConfiguredPlaintextFileIsStaged(t *testing.T) {
 		t.Fatal("expected staged plaintext file to fail check")
 	}
 }
+
+func TestCheckRepoUnsafeWhenConfiguredPlaintextFileIsCommitted(t *testing.T) {
+	repoPath, homePath := setupRepoAndHome(t)
+	services := Services{KeyStore: keystore.NewFileStore(homePath)}
+	runAppGit(t, repoPath, "config", "user.email", "test@example.invalid")
+	runAppGit(t, repoPath, "config", "user.name", "Test User")
+	runAppGit(t, repoPath, "add", ".env")
+	runAppGit(t, repoPath, "commit", "-m", "commit plaintext")
+
+	if _, err := EncryptRepoWithServices(repoPath, services); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := CheckRepoWithServices(repoPath, services)
+
+	if err != nil {
+		t.Fatalf("expected check to inspect repo, got %v", err)
+	}
+	if got.Safe {
+		t.Fatalf("expected committed plaintext file to fail check, got %#v", got.Messages)
+	}
+}

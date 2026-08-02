@@ -128,3 +128,26 @@ func StagedFiles(repoPath string, relPaths []string) (map[string]bool, error) {
 	}
 	return result, nil
 }
+
+func IndexedFiles(repoPath string, relPaths []string) (map[string]bool, error) {
+	result := map[string]bool{}
+	for _, path := range relPaths {
+		result[path] = false
+	}
+
+	cmd := exec.Command("git", "ls-files", "--cached", "-z", "--")
+	cmd.Dir = repoPath
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("listing indexed files: %w", err)
+	}
+	for _, path := range strings.Split(string(output), "\x00") {
+		if path == "" {
+			continue
+		}
+		if _, ok := result[path]; ok {
+			result[path] = true
+		}
+	}
+	return result, nil
+}

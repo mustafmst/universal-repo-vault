@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/mustafmst/universal-repo-vault/internal/archive"
@@ -72,6 +73,13 @@ func DecryptRepoWithServicesAndOptions(repoPath string, services Services, optio
 	result := &DecryptResult{DryRun: options.DryRun, Files: files}
 	if options.DryRun {
 		return result, nil
+	}
+	if !options.Overwrite {
+		for _, file := range files {
+			if file.Action == archive.EntryOverwrite {
+				return result, fmt.Errorf("refusing to overwrite existing file: %s", file.Path)
+			}
+		}
 	}
 	return result, services.Archiver.Unpack(repoPath, decryptedArch, options.Overwrite)
 }

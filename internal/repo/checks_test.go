@@ -330,6 +330,31 @@ func TestStagedFilesReportsConfiguredFilesInIndex(t *testing.T) {
 	}
 }
 
+func TestIndexedFilesReportsCommittedConfiguredFiles(t *testing.T) {
+	repoPath := t.TempDir()
+	runGit(t, repoPath, "init")
+	runGit(t, repoPath, "config", "user.email", "test@example.invalid")
+	runGit(t, repoPath, "config", "user.name", "Test User")
+	fileName := " secret.env "
+	if err := os.WriteFile(filepath.Join(repoPath, fileName), []byte("secret\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repoPath, "add", fileName)
+	runGit(t, repoPath, "commit", "-m", "commit plaintext")
+
+	got, err := IndexedFiles(repoPath, []string{fileName, "plain.txt"})
+
+	if err != nil {
+		t.Fatalf("expected index check to succeed, got %v", err)
+	}
+	if !got[fileName] {
+		t.Fatalf("expected committed file in index, got %#v", got)
+	}
+	if got["plain.txt"] {
+		t.Fatalf("expected plain.txt absent from index, got %#v", got)
+	}
+}
+
 func TestStagedFilesPreservesWhitespaceInConfiguredPath(t *testing.T) {
 	repoPath := t.TempDir()
 	runGit(t, repoPath, "init")

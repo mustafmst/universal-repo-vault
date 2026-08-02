@@ -35,14 +35,23 @@ func CheckRepoWithServices(repoPath string, services Services) (*CheckResult, er
 			paths = append(paths, file.Path)
 		}
 	}
+	indexed, err := repo.IndexedFiles(repoPath, paths)
+	if err != nil {
+		return nil, err
+	}
 	staged, err := repo.StagedFiles(repoPath, paths)
 	if err != nil {
 		return nil, err
 	}
 	for _, path := range paths {
+		if indexed[path] {
+			result.Safe = false
+			result.Messages = append(result.Messages, fmt.Sprintf("configured plaintext file is tracked in the Git index: %s", path))
+			continue
+		}
 		if staged[path] {
 			result.Safe = false
-			result.Messages = append(result.Messages, fmt.Sprintf("configured plaintext file is staged: %s", path))
+			result.Messages = append(result.Messages, fmt.Sprintf("configured plaintext file has a staged Git change: %s", path))
 		}
 	}
 	return result, nil

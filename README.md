@@ -215,7 +215,7 @@ urv status
 urv check
 ```
 
-`urv check` exits non-zero when the repository is not safe to commit. It is intended for local scripts, CI, and pre-commit hooks.
+`urv check` exits non-zero when the repository is not safe to commit. It fails whenever a configured plaintext file is present in the Git index, including files committed in `HEAD`, and must never report success in that state. It is intended for local scripts, CI, and pre-commit hooks.
 
 The files under `example-files/` contain dummy values only. Do not copy real secrets into tracked example files.
 

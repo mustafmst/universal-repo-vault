@@ -174,8 +174,28 @@ func TestDecryptRepoWithOptionsNoOverwriteFailsOnExistingFile(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected no-overwrite decrypt to fail")
 	}
-	if !strings.Contains(err.Error(), "file was not replaced") && !strings.Contains(err.Error(), "file exists") {
+	if !strings.Contains(err.Error(), "refusing to overwrite existing file") {
 		t.Fatalf("expected existing file error, got %v", err)
+	}
+}
+
+func TestDecryptRepoWithOptionsNoOverwriteDoesNotPartiallyWriteFiles(t *testing.T) {
+	repoPath, homePath := setupRepoAndHome(t)
+	services := Services{KeyStore: keystore.NewFileStore(homePath)}
+	if _, err := EncryptRepoWithServices(repoPath, services); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(repoPath, ".env")); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := DecryptRepoWithServicesAndOptions(repoPath, services, DecryptOptions{Overwrite: false})
+
+	if err == nil {
+		t.Fatal("expected no-overwrite decrypt to fail")
+	}
+	if _, err := os.Stat(filepath.Join(repoPath, ".env")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected no-overwrite decrypt not to restore any files, got %v", err)
 	}
 }
 
