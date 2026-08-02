@@ -26,6 +26,14 @@ type FileStore struct {
 	home string
 }
 
+type KeyHealth struct {
+	Mapped         bool
+	KeyName        string
+	KeyFileExists  bool
+	KeyLengthValid bool
+	Err            error
+}
+
 func NewDefaultFileStore() *FileStore {
 	return NewFileStore(os.Getenv("HOME"))
 }
@@ -204,4 +212,38 @@ func (fs *FileStore) KeyForRepo(repoPath string) (string, error) {
 		return "", fmt.Errorf("reading key from: %s, expected key len: %d, read: %d", keyFile, 2*KeyLength, len(key))
 	}
 	return key, nil
+}
+
+func (fs *FileStore) HealthForRepo(repoPath string) KeyHealth {
+	mapping, err := fs.Mapping()
+	if err != nil {
+		return KeyHealth{Err: err}
+	}
+
+	keyName, err := mapping.Get(repoPath)
+	if err != nil {
+		return KeyHealth{Err: err}
+	}
+
+	health := KeyHealth{Mapped: true, KeyName: keyName}
+	keyFile := fs.keyPath(keyName)
+	raw, err := os.ReadFile(keyFile)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			health.Err = fmt.Errorf("key file %s does not exists: %w", keyFile, err)
+			return health
+		}
+		health.Err = err
+		return health
+	}
+
+	health.KeyFileExists = true
+	key := strings.TrimSpace(string(raw))
+	if len(key) != 2*KeyLength {
+		health.Err = fmt.Errorf("reading key from: %s, expected key len: %d, read: %d", keyFile, 2*KeyLength, len(key))
+		return health
+	}
+
+	health.KeyLengthValid = true
+	return health
 }

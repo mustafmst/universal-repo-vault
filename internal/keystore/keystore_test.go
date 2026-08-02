@@ -78,3 +78,107 @@ func TestFileStoreMissingKeyForRepoReturnsContext(t *testing.T) {
 		t.Fatalf("expected missing mapping error, got %v", err)
 	}
 }
+
+func TestFileStoreHealthForRepoMappedValidKey(t *testing.T) {
+	home := t.TempDir()
+	repoPath := filepath.Join(t.TempDir(), "repo")
+	store := NewFileStore(home)
+	if err := store.SaveKey(keystoreTestKey, repoPath, "repo-key"); err != nil {
+		t.Fatal(err)
+	}
+
+	got := store.HealthForRepo(repoPath)
+
+	if got.Err != nil {
+		t.Fatalf("expected no error, got %v", got.Err)
+	}
+	if !got.Mapped {
+		t.Fatal("expected mapped key")
+	}
+	if got.KeyName != "repo-key" {
+		t.Fatalf("expected key name repo-key, got %q", got.KeyName)
+	}
+	if !got.KeyFileExists {
+		t.Fatal("expected key file to exist")
+	}
+	if !got.KeyLengthValid {
+		t.Fatal("expected valid key length")
+	}
+}
+
+func TestFileStoreHealthForRepoMissingMapping(t *testing.T) {
+	got := NewFileStore(t.TempDir()).HealthForRepo("/tmp/missing")
+
+	if got.Mapped {
+		t.Fatal("expected no mapping")
+	}
+	if got.KeyFileExists {
+		t.Fatal("expected no key file")
+	}
+	if got.KeyLengthValid {
+		t.Fatal("expected invalid key length")
+	}
+	if got.Err == nil || !strings.Contains(got.Err.Error(), "key for repo not found") {
+		t.Fatalf("expected missing mapping error, got %v", got.Err)
+	}
+}
+
+func TestFileStoreHealthForRepoMissingKeyFile(t *testing.T) {
+	home := t.TempDir()
+	repoPath := "/tmp/example-repo"
+	configPath := filepath.Join(home, ".config", "urv")
+	if err := os.MkdirAll(configPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configPath, "mapping.yaml"), []byte(repoPath+": repo-key\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := NewFileStore(home).HealthForRepo(repoPath)
+
+	if !got.Mapped {
+		t.Fatal("expected mapping")
+	}
+	if got.KeyName != "repo-key" {
+		t.Fatalf("expected repo-key, got %q", got.KeyName)
+	}
+	if got.KeyFileExists {
+		t.Fatal("expected missing key file")
+	}
+	if got.KeyLengthValid {
+		t.Fatal("expected invalid key length")
+	}
+	if got.Err == nil || !strings.Contains(got.Err.Error(), "key file") {
+		t.Fatalf("expected missing key file error, got %v", got.Err)
+	}
+}
+
+func TestFileStoreHealthForRepoInvalidKeyLength(t *testing.T) {
+	home := t.TempDir()
+	repoPath := filepath.Join(t.TempDir(), "repo")
+	configPath := filepath.Join(home, ".config", "urv")
+	if err := os.MkdirAll(filepath.Join(configPath, "keys"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configPath, "mapping.yaml"), []byte(repoPath+": repo-key\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configPath, "keys", "repo-key"), []byte("short"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got := NewFileStore(home).HealthForRepo(repoPath)
+
+	if !got.Mapped {
+		t.Fatal("expected mapping")
+	}
+	if !got.KeyFileExists {
+		t.Fatal("expected key file")
+	}
+	if got.KeyLengthValid {
+		t.Fatal("expected invalid key length")
+	}
+	if got.Err == nil || !strings.Contains(got.Err.Error(), "expected key len") {
+		t.Fatalf("expected invalid length error, got %v", got.Err)
+	}
+}
