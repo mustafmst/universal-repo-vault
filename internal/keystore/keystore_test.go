@@ -69,6 +69,33 @@ func TestFileStoreReadsExistingMappingFormat(t *testing.T) {
 	}
 }
 
+func TestFileStoreKeyForRepoRejectsNonHexKey(t *testing.T) {
+	home := t.TempDir()
+	repoPath := filepath.Join(t.TempDir(), "repo")
+	configPath := filepath.Join(home, ".config", "urv")
+	if err := os.MkdirAll(filepath.Join(configPath, "keys"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configPath, "mapping.yaml"), []byte(repoPath+": repo-key\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configPath, "keys", "repo-key"), []byte(strings.Repeat("z", 64)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := NewFileStore(home).KeyForRepo(repoPath)
+
+	if err == nil {
+		t.Fatal("expected invalid key encoding error, got nil")
+	}
+	if got != "" {
+		t.Fatalf("expected empty key, got %q", got)
+	}
+	if !strings.Contains(err.Error(), "invalid key encoding") {
+		t.Fatalf("expected invalid encoding error, got %v", err)
+	}
+}
+
 func TestFileStoreMissingKeyForRepoReturnsContext(t *testing.T) {
 	_, err := NewFileStore(t.TempDir()).KeyForRepo("/tmp/missing")
 	if err == nil {

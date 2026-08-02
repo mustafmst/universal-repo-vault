@@ -188,6 +188,18 @@ func (fs *FileStore) SaveKey(key string, repoPath string, keyName string) error 
 	return mapping.Save()
 }
 
+func validateHexKey(keyFile string, raw []byte) (string, error) {
+	key := strings.TrimSpace(string(raw))
+	if len(key) != 2*KeyLength {
+		return "", fmt.Errorf("reading key from: %s, expected key len: %d, read: %d", keyFile, 2*KeyLength, len(key))
+	}
+	keyBytes, err := hex.DecodeString(key)
+	if err != nil || len(keyBytes) != KeyLength {
+		return "", fmt.Errorf("reading key from: %s, invalid key encoding", keyFile)
+	}
+	return key, nil
+}
+
 func (fs *FileStore) KeyForRepo(repoPath string) (string, error) {
 	mapping, err := fs.Mapping()
 	if err != nil {
@@ -207,11 +219,7 @@ func (fs *FileStore) KeyForRepo(repoPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	key := strings.TrimSpace(string(raw))
-	if len(key) != 2*KeyLength {
-		return "", fmt.Errorf("reading key from: %s, expected key len: %d, read: %d", keyFile, 2*KeyLength, len(key))
-	}
-	return key, nil
+	return validateHexKey(keyFile, raw)
 }
 
 func (fs *FileStore) HealthForRepo(repoPath string) KeyHealth {
@@ -238,14 +246,8 @@ func (fs *FileStore) HealthForRepo(repoPath string) KeyHealth {
 	}
 
 	health.KeyFileExists = true
-	key := strings.TrimSpace(string(raw))
-	if len(key) != 2*KeyLength {
-		health.Err = fmt.Errorf("reading key from: %s, expected key len: %d, read: %d", keyFile, 2*KeyLength, len(key))
-		return health
-	}
-	keyBytes, err := hex.DecodeString(key)
-	if err != nil || len(keyBytes) != KeyLength {
-		health.Err = fmt.Errorf("reading key from: %s, invalid key encoding", keyFile)
+	if _, err := validateHexKey(keyFile, raw); err != nil {
+		health.Err = err
 		return health
 	}
 
