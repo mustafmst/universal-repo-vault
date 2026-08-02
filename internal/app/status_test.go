@@ -94,3 +94,104 @@ func TestStatusRepoReportsMissingVaultAndKey(t *testing.T) {
 		t.Fatalf("expected missing key error, got %#v", got.Errors)
 	}
 }
+
+func TestStatusRepoReportsUnchangedFiles(t *testing.T) {
+	repoPath, homePath := setupRepoAndHome(t)
+	store := keystore.NewFileStore(homePath)
+	services := Services{KeyStore: store}
+
+	if _, err := EncryptRepoWithServices(repoPath, services); err != nil {
+		t.Fatalf("expected encrypt to succeed, got %v", err)
+	}
+
+	got, err := StatusRepoWithServices(repoPath, services)
+
+	if err != nil {
+		t.Fatalf("expected inspection to succeed, got %v", err)
+	}
+	if got.Overall != OverallSafe {
+		t.Fatalf("expected safe, got %q with errors %#v", got.Overall, got.Errors)
+	}
+	env, ok := findStatusFile(got.Files, ".env")
+	if !ok {
+		t.Fatalf("expected .env in files: %#v", got.Files)
+	}
+	if env.Status != FileUnchanged {
+		t.Fatalf("expected unchanged, got %q", env.Status)
+	}
+}
+
+func TestStatusRepoReportsChangedAndNewFiles(t *testing.T) {
+	repoPath, homePath := setupRepoAndHome(t)
+	store := keystore.NewFileStore(homePath)
+	services := Services{KeyStore: store}
+	if _, err := EncryptRepoWithServices(repoPath, services); err != nil {
+		t.Fatalf("expected encrypt to succeed, got %v", err)
+	}
+	writeStatusFile(t, filepath.Join(repoPath, ".env"), "API_KEY=changed\n", 0o600)
+	writeStatusFile(t, filepath.Join(repoPath, "new.secret.yaml"), "password: two\n", 0o600)
+
+	got, err := StatusRepoWithServices(repoPath, services)
+
+	if err != nil {
+		t.Fatalf("expected inspection to succeed, got %v", err)
+	}
+	if got.Overall != OverallNeedsEncryption {
+		t.Fatalf("expected needs encryption, got %q", got.Overall)
+	}
+	env, ok := findStatusFile(got.Files, ".env")
+	if !ok || env.Status != FileChanged {
+		t.Fatalf("expected changed .env, got %#v found=%v", env, ok)
+	}
+	newFile, ok := findStatusFile(got.Files, "new.secret.yaml")
+	if !ok || newFile.Status != FileNew {
+		t.Fatalf("expected new file, got %#v found=%v", newFile, ok)
+	}
+}
+
+func TestStatusRepoReportsMissingExplicitFile(t *testing.T) {
+	repoPath, homePath := setupRepoAndHome(t)
+	store := keystore.NewFileStore(homePath)
+	services := Services{KeyStore: store}
+	if _, err := EncryptRepoWithServices(repoPath, services); err != nil {
+		t.Fatalf("expected encrypt to succeed, got %v", err)
+	}
+	if err := os.Remove(filepath.Join(repoPath, ".env")); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := StatusRepoWithServices(repoPath, services)
+
+	if err != nil {
+		t.Fatalf("expected inspection to succeed, got %v", err)
+	}
+	if got.Overall != OverallNeedsEncryption {
+		t.Fatalf("expected needs encryption, got %q", got.Overall)
+	}
+	env, ok := findStatusFile(got.Files, ".env")
+	if !ok || env.Status != FileMissing {
+		t.Fatalf("expected missing .env, got %#v found=%v", env, ok)
+	}
+}
+
+func TestStatusRepoReportsVaultOnlyFile(t *testing.T) {
+	repoPath, homePath := setupRepoAndHome(t)
+	store := keystore.NewFileStore(homePath)
+	services := Services{KeyStore: store}
+	if _, err := EncryptRepoWithServices(repoPath, services); err != nil {
+		t.Fatalf("expected encrypt to succeed, got %v", err)
+	}
+	if err := os.Remove(filepath.Join(repoPath, "nested", "app.secret.yaml")); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := StatusRepoWithServices(repoPath, services)
+
+	if err != nil {
+		t.Fatalf("expected inspection to succeed, got %v", err)
+	}
+	vaultOnly, ok := findStatusFile(got.Files, "nested/app.secret.yaml")
+	if !ok || vaultOnly.Status != FileVaultOnly {
+		t.Fatalf("expected vault-only file, got %#v found=%v", vaultOnly, ok)
+	}
+}
