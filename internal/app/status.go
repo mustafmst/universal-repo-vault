@@ -98,7 +98,10 @@ func StatusRepoWithServices(repoPath string, services Services) (*StatusReport, 
 		return report, nil
 	}
 
-	warnings, validationErrors := validateStatusConfig(repoPath, cfg)
+	warnings, validationErrors, err := validateStatusConfig(repoPath, cfg)
+	if err != nil {
+		return nil, err
+	}
 	report.Warnings = append(report.Warnings, warnings...)
 	report.Errors = append(report.Errors, validationErrors...)
 	if len(validationErrors) > 0 {
@@ -136,12 +139,15 @@ func StatusRepoWithServices(repoPath string, services Services) (*StatusReport, 
 		}
 	}
 
-	report.Files = classifyStatusFiles(repoPath, cfg.SecretFiles, foundFiles, hashes, vaultHashes(v))
+	report.Files, err = classifyStatusFiles(repoPath, cfg.SecretFiles, foundFiles, hashes, vaultHashes(v))
+	if err != nil {
+		return nil, err
+	}
 	report.finish()
 	return report, nil
 }
 
-func validateStatusConfig(repoPath string, cfg *config.Config) (warnings []string, validationErrors []string) {
+func validateStatusConfig(repoPath string, cfg *config.Config) (warnings []string, validationErrors []string, inspectionErr error) {
 	for _, pattern := range cfg.Patterns {
 		if _, err := filepath.Match(pattern, ""); err != nil {
 			validationErrors = append(validationErrors, fmt.Sprintf("invalid file pattern %q: %v", pattern, err))
@@ -169,11 +175,11 @@ func validateStatusConfig(repoPath string, cfg *config.Config) (warnings []strin
 		if err == nil && info.IsDir() {
 			validationErrors = append(validationErrors, fmt.Sprintf("configured secret file is a directory %q", path))
 		} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-			validationErrors = append(validationErrors, fmt.Sprintf("inspecting configured secret file %q: %v", path, err))
+			return nil, nil, fmt.Errorf("inspecting configured secret file %q: %w", path, err)
 		}
 	}
 
-	return warnings, validationErrors
+	return warnings, validationErrors, nil
 }
 
 func validateStatusDiscoveredFiles(foundFiles []string) (safeFiles []string, errors []string) {
@@ -203,7 +209,7 @@ func vaultHashes(v *vault.Vault) map[string]string {
 	return v.Hashes
 }
 
-func classifyStatusFiles(repoPath string, explicit []string, discovered []string, currentHashes map[string]string, oldHashes map[string]string) []StatusFile {
+func classifyStatusFiles(repoPath string, explicit []string, discovered []string, currentHashes map[string]string, oldHashes map[string]string) ([]StatusFile, error) {
 	discoveredSet := map[string]struct{}{}
 	for _, path := range discovered {
 		discoveredSet[path] = struct{}{}
@@ -227,8 +233,11 @@ func classifyStatusFiles(repoPath string, explicit []string, discovered []string
 		if _, ok := discoveredSet[cleanPath]; ok {
 			continue
 		}
-		if _, err := os.Stat(filepath.Join(repoPath, filepath.FromSlash(cleanPath))); errors.Is(err, os.ErrNotExist) {
+		_, err := os.Stat(filepath.Join(repoPath, filepath.FromSlash(cleanPath)))
+		if errors.Is(err, os.ErrNotExist) {
 			resultByPath[cleanPath] = FileMissing
+		} else if err != nil {
+			return nil, fmt.Errorf("inspecting configured secret file %q: %w", cleanPath, err)
 		}
 	}
 
@@ -250,7 +259,7 @@ func classifyStatusFiles(repoPath string, explicit []string, discovered []string
 	for _, path := range paths {
 		result = append(result, StatusFile{Path: path, Status: resultByPath[path]})
 	}
-	return result
+	return result, nil
 }
 
 func (r *StatusReport) finish() {

@@ -369,6 +369,35 @@ func TestStatusRepoReturnsErrorWhenHashingConfiguredFileFails(t *testing.T) {
 	}
 }
 
+func TestClassifyStatusFilesReturnsErrorForUnexpectedExplicitFileStatError(t *testing.T) {
+	repoPath := t.TempDir()
+	writeStatusFile(t, filepath.Join(repoPath, "not-a-directory"), "data\n", 0o600)
+
+	_, err := classifyStatusFiles(
+		repoPath,
+		[]string{"not-a-directory/secret.env"},
+		nil,
+		map[string]string{},
+		map[string]string{},
+	)
+
+	if err == nil {
+		t.Fatal("expected explicit-file stat failure to be returned")
+	}
+}
+
+func TestStatusRepoReturnsErrorWhenExplicitFileInspectionFails(t *testing.T) {
+	repoPath, store := statusRepo(t)
+	writeStatusFile(t, filepath.Join(repoPath, "not-a-directory"), "data\n", 0o600)
+	writeStatusFile(t, filepath.Join(repoPath, ".urv.yaml"), "secretfiles:\n  - not-a-directory/secret.env\n", 0o644)
+
+	_, err := StatusRepoWithServices(repoPath, Services{KeyStore: store})
+
+	if err == nil {
+		t.Fatal("expected explicit-file inspection failure to make status fail")
+	}
+}
+
 func TestStatusRepoWarnsWhenPatternMatchesNothing(t *testing.T) {
 	repoPath, store := statusRepo(t)
 	writeStatusFile(t, filepath.Join(repoPath, ".urv.yaml"), "patterns:\n  - \"*.secret.*\"\n", 0o644)
