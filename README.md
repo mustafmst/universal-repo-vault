@@ -21,6 +21,7 @@ URV should make it easy to keep secret files out of Git while still keeping an e
 - Encrypt selected files into `.urv.vault.yaml`.
 - Track encrypted file hashes in `.urv.vault.yaml`.
 - Decrypt the vault back into the working tree.
+- Inspect repository vault safety status without changing files.
 
 ## Project Structure
 
@@ -118,6 +119,14 @@ This creates or updates:
 
 - `.urv.vault.yaml`
 
+Check repository safety before committing:
+
+```sh
+urv status
+```
+
+`safe` means the configured files match the vault metadata. `needs encryption` means at least one configured file is new, changed, missing, or only present in the vault metadata. `broken setup` means URV could not validate required setup such as config, vault, or local key mapping.
+
 Commit `.urv.yaml` and `.urv.vault.yaml` to Git. Do not commit the plaintext secret files unless that is intentional.
 
 On another machine, add or map the same key, then decrypt the vault:
@@ -155,6 +164,12 @@ Encrypt configured files:
 
 ```sh
 urv encrypt
+```
+
+Show whether the repository is safe, needs encryption, or has broken setup:
+
+```sh
+urv status
 ```
 
 Decrypt the vault into the working tree:
